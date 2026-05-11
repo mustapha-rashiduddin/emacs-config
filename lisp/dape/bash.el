@@ -1,5 +1,4 @@
 ;;; bash.el --- Bash Debugging logic for Dape -*- lexical-binding: t; -*-
-
 (defun my-dape-start-bash ()
   "Start bash-debug-adapter for the current script."
   (interactive)
@@ -41,9 +40,7 @@
                   :pathBash   (or (executable-find "bash") "bash")
                   :pathCat    (or (executable-find "cat") "cat")
                   :pathMkfifo (or (executable-find "mkfifo") "mkfifo")
-                  :pathPkill  (or (executable-find "pkill") "pkill"))))))
-
-;; Register to the global dispatcher
+                  :pathPkill  (or (executable-find "pkill") "pkill")))))) ;; Register to the global dispatcher
 (add-to-list 'my-dape-dispatch-alist
              '((sh-mode bash-ts-mode) . my-dape-start-bash))
 

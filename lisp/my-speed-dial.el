@@ -1,5 +1,4 @@
 ;;; my-speed-dial.el --- Custom workspace speed dial (SQLite Edition) -*- lexical-binding: t; byte-compile-warnings: (not docstrings redefine) -*-
-
 (require 'bookmark)
 (require 'cl-lib)
 (require 'sqlite)

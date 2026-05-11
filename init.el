@@ -142,6 +142,7 @@
 (defvar my/font-retro-name "AcPlus IBM VGA 8x16:pixelsize=32:antialias=true:autohint=false")
 
 (defvar my/font-arabic-name "Scheherazade New")
+;(defvar my/font-arabic-name "Noto Nastaliq Urdu")
 (defvar my/font-symbol-name (seq-find (lambda (f) (string-match-p "JetBrains\\|Hack" f)) 
                                       (font-family-list)))
 
@@ -156,7 +157,7 @@
   (when (member my/font-arabic-name (font-family-list))
     (set-fontset-font t 'arabic 
                       (font-spec :family my/font-arabic-name 
-                                 ;:size 24
+                                 ;:size 55
                                  :weight 'normal))) ;; <-- This blocks the semi-bold bleed-over!
 
   ;; 3. Symbols
