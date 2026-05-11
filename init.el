@@ -142,7 +142,26 @@
 (defvar my/font-retro-name "AcPlus IBM VGA 8x16:pixelsize=32:antialias=true:autohint=false")
 
 (defvar my/font-arabic-name "Scheherazade New")
-;(defvar my/font-arabic-name "Noto Nastaliq Urdu")
+(defun my/set-arabic-font ()
+  "Switch Arabic script to Scheherazade New (Quran/classical Arabic)."
+  (interactive)
+  (setq my/font-arabic-name "Scheherazade New")
+  (my/setup-font-fallbacks)
+  (message "Arabic font: Scheherazade New"))
+
+(defun my/set-urdu-font ()
+  "Switch Arabic script to Noto Nastaliq Urdu."
+  (interactive)
+  (setq my/font-arabic-name "Noto Nastaliq Urdu")
+  (my/setup-font-fallbacks)
+  (message "Arabic font: Noto Nastaliq Urdu"))
+
+(with-eval-after-load 'evil
+  (evil-ex-define-cmd "vintage"   'my/font-typewriter)
+  (evil-ex-define-cmd "oldschool" 'my/font-retro)
+  (evil-ex-define-cmd "arabic"    'my/set-arabic-font)
+  (evil-ex-define-cmd "urdu"      'my/set-urdu-font))
+
 (defvar my/font-symbol-name (seq-find (lambda (f) (string-match-p "JetBrains\\|Hack" f)) 
                                       (font-family-list)))
 
@@ -157,7 +176,7 @@
   (when (member my/font-arabic-name (font-family-list))
     (set-fontset-font t 'arabic 
                       (font-spec :family my/font-arabic-name 
-                                 ;:size 55
+                                 :size 55
                                  :weight 'normal))) ;; <-- This blocks the semi-bold bleed-over!
 
   ;; 3. Symbols
@@ -489,14 +508,13 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 ;; 4. Ensure 'q' flawlessly puts your C++ code back on the screen
 (add-hook 'eldoc-mode-hook
           (lambda ()
-            (local-set-key (kbd "q") 
-                           (lambda ()
-                             (interactive)
-                             ;; Swap the eldoc buffer back to your C++ code
-                             (quit-window)
-                             ;; Guarantee your cursor is exactly where it started
-                             (when (fboundp 'evil-jump-backward)
-                               (evil-jump-backward 1))))))
+            (when (string= (buffer-name) "*eldoc*")
+              (local-set-key (kbd "q") 
+                             (lambda ()
+                               (interactive)
+                               (quit-window)
+                               (when (fboundp 'evil-jump-backward)
+                                 (evil-jump-backward 1)))))))
 
 ;; Forcefully rip out any old bindings and hard-wire the Traffic Cops
 ;; directly into Evil's core nervous system.
