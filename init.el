@@ -43,7 +43,7 @@
 (let ((lockfile (expand-file-name "straight/versions/default.el" user-emacs-directory))
       (pinned-commits
        '(("org"                . "13b24185576b4063021378cf8c77577bb61c1c31")
-         ("transient"          . "7131bec61e558e022ce75e2d2d5e55c748fcf8e0")
+         ;;("transient"          . "7131bec61e558e022ce75e2d2d5e55c748fcf8e0")
          ("evil"               . "b06f644bdb5b06c6ac46c11b0259f15ac9ffd5da")
          ("evil-collection"    . "a18d16675c194203c00f46334fd7c22f46e7671a")
          ("evil-org"           . "233f8b723351801910527b4c39c1f85652131f6e")
