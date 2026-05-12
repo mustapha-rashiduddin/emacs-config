@@ -7,6 +7,7 @@
 ;; ==========================================
 ;; 0. Emacs Core & Custom UI Settings
 ;; ==========================================
+
 (server-start)
 
 ;; Always prefer newer source files over stale byte-compiled files
@@ -19,37 +20,82 @@
 ;; ==========================================
 ;; 1. Setup Package Archives & Use-Package
 ;; ==========================================
-(require 'package)
-(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+;; Bootstrap straight.el
+(defvar bootstrap-version)
+(let ((bootstrap-file
+       (expand-file-name "straight/repos/straight.el/bootstrap.el" user-emacs-directory))
+      (bootstrap-version 7))
+  (unless (file-exists-p bootstrap-file)
+    (with-current-buffer
+        (url-retrieve-synchronously
+         "https://raw.githubusercontent.com/radian-software/straight.el/develop/install.el"
+         'silent 'inhibit-cookies)
+      (goto-char (point-max))
+      (eval-print-last-sexp)))
+  (load bootstrap-file nil 'nomessage))
 
-;; Initialize package.el
-(package-initialize)
+;; ---------------------------------------------------------
+;; THE REAL FIX: FORCE-INJECT THE LOCKFILE
+;; ---------------------------------------------------------
+;; straight.el silently ignores `:commit` in recipes. The ONLY way to pin 
+;; commits is via its lockfile. We write it programmatically here so that 
+;; when straight clones a package, it natively checks out these exact hashes.
+(let ((lockfile (expand-file-name "straight/versions/default.el" user-emacs-directory))
+      (pinned-commits
+       '(("org"                . "13b24185576b4063021378cf8c77577bb61c1c31")
+         ("transient"          . "7131bec61e558e022ce75e2d2d5e55c748fcf8e0")
+         ("evil"               . "b06f644bdb5b06c6ac46c11b0259f15ac9ffd5da")
+         ("evil-collection"    . "a18d16675c194203c00f46334fd7c22f46e7671a")
+         ("evil-org"           . "233f8b723351801910527b4c39c1f85652131f6e")
+         ("org-roam"           . "b4857fd7a140361883dfb95e1193ee42698a4afb")
+         ("org-roam-ui"        . "fc909566222669dd1ae9c642e2898c3d67bc6fb5")
+         ;;("org-transclusion"   . "4938093")
+         ("lua-mode"           . "eb067bce0e832ae0dc6d06d739faffaae8e514de")
+         ;;("eat"                . "c91451f")
+         ;;("corfu-terminal"     . "501548c")
+         ;;("ef-themes"          . "16681ce")
+         ("elfeed"             . "66cfe43dfc61d0b56d9e4e72aba3dfab0ed4bdf7")
+         ("elfeed-org"         . "d62d23e25c5e3be3d70b7fbe1eaeb6e43f93a061")
+         ("pdf-tools"          . "5245f092e35712df6559a7782a93bb61896175dd")
+         ("saveplace-pdf-view" . "79e76562bc5ef94c12837035fe504f07be8a8f25")
+         ("corfu"              . "abfe0003d71b61ffdcf23fc6e546643486daeb69")
+         ("imenu-list"         . "1447cdc8c0268e332fb4adc0c643702245d31bde")
+         ("avy"                . "be612110cb116a38b8603df367942e2bb3d9bdbe")
+         ;;("xclip"              . "9ab2251")
+         ;;("dape"               . "2d63a41")
+         ("yasnippet"          . "272b6067f17675eb4eb001a7a933a52e730152cf")
+         ("org-download"       . "19e166f0a8c539b4144cfbc614309d47a9b2a9b7")
+         ("org-appear"         . "81eba5d7a5b74cdb1bad091d85667e836f16b997")
+         
+         ;; Your hidden transitive dependencies
+         ("async"              . "5cae78dc0a75cb86df300939af0b00035bc1c045")
+         ("cond-let"           . "538a4162cc5b39cee2e0f85609ffc1f1716cdf8d")
+         ("emacsql"            . "d654e4fb1d0f5addd998982754519d144df4bd4c")
+         ("websocket"          . "3210187c107cdbb075b2e47454068a22f38213fc")
+         ("goto-chg"           . "3baa71e27b233a966bf4168ba7432cc646658b15")
+         ("hydra"              . "317e1de33086637579a7aeb60f77ed0405bf359b")
+         ("llama"              . "de61773fc378d40f478f8daf67543a51889ecded")
+         ("modus-themes"       . "a4264088b7782e135d2a6210c932eb11cc5fbecd")
+         ;;("popon"              . "bf8174c")
+         ("tablist"            . "5f7b71a92bfb25418d7da86ad9c45f14b149496f"))))
+  
+  ;; Create the directory if missing
+  (unless (file-exists-p (file-name-directory lockfile))
+    (make-directory (file-name-directory lockfile) t))
+    
+  ;; Write the lockfile
+  (with-temp-file lockfile
+    (let ((print-level nil) (print-length nil))
+      (prin1 pinned-commits (current-buffer)))))
 
-;; Bootstrap use-package
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
+(straight-use-package 'use-package)
+(setq straight-use-package-by-default t)
 
-(require 'use-package)
-(setq use-package-always-ensure t)
-
-;; CRITICAL: Tell the byte-compiler about use-package so it expands macros correctly
-(eval-when-compile
-  (require 'use-package))
-
-;; ==========================================
-;; Silence Byte-Compiler Warnings
-;; ==========================================
-;; Tell the compiler these functions will exist at runtime
-(declare-function eshell-send-input "esh-mode")
-(declare-function evil-org-set-key-theme "evil-org")
-(declare-function evil-org-agenda-set-keys "evil-org-agenda")
-;; Fix for PDF Tools compiler warnings:
-(declare-function pdf-info-outline "pdf-info")
-(declare-function pdf-info-running-p "pdf-info")
-(declare-function image-mode-window-get "image-mode")
-;; Fix for Eglot/JSONRPC warnings:
-(declare-function jsonrpc--log-event "jsonrpc")
+;; You MUST keep custom repos for forks like org and transient, 
+;; but the fake :commit keywords have been removed.
+(straight-use-package '(org :host github :repo "emacs-straight/org-mode"))
+;;(straight-use-package '(transient :host github :repo "magit/transient"))
+(straight-use-package 'transient)
 
 ;; ==========================================
 ;; 2. Install and enable Evil & Evil-Collection
@@ -57,6 +103,7 @@
 ;; ==========================================
 
 (use-package evil
+  :straight (:host github :repo "emacs-evil/evil")
   :init
   (setq evil-want-integration t
 	evil-want-keybinding nil
@@ -69,6 +116,7 @@
   (evil-define-key 'normal 'global (kbd "<leader> f f") 'find-file))
 
 (use-package evil-collection
+  :straight (:host github :repo "emacs-evil/evil-collection")
   :after evil
   :config
   (evil-collection-init))
@@ -427,6 +475,7 @@
 (require 'org)
 
 (use-package evil-org
+  :straight (:host github :repo "Somelauw/evil-org-mode")
   :hook (org-mode . evil-org-mode)
   :config
   (require 'evil-org-agenda)
@@ -437,6 +486,7 @@
 (defvar org-roam-directory (expand-file-name "~/org-roam"))
 
 (use-package org-roam
+  :straight (:host github :repo "org-roam/org-roam")
   :config
   (unless (file-exists-p org-roam-directory)
     (make-directory org-roam-directory))
@@ -555,6 +605,7 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
     (kbd "<leader> n d") 'my/org-roam-delete-current-node))
 
 (use-package org-roam-ui
+  :straight (:host github :repo "org-roam/org-roam-ui")
   :custom
   (org-roam-ui-sync-theme t)
   (org-roam-ui-follow t)
@@ -568,6 +619,7 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 (define-key minibuffer-local-completion-map (kbd "SPC") 'self-insert-command)
 
 (use-package org-transclusion
+  :straight (:host github :repo "nobiot/org-transclusion")
   :config
   (evil-define-key '(normal motion) 'org-mode-map
     (kbd "<leader> n t") 'org-transclusion-mode
@@ -902,7 +954,7 @@ If already inside the code body of a block, do nothing."
       ;; if already in a block or if no block exists.
       (my/org-jump-to-src-block)))))
 
-(setq org-edit-src-content-indentation 0)
+(setq org-src-content-indentation 0)
 (setq org-src-preserve-indentation t)
 
 
@@ -2165,13 +2217,14 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
       (message "Transclusion removed"))))
 
 (use-package org-download
+  :straight (:host github :repo "abo-abo/org-download")
   :hook ((dired-mode . org-download-enable)
          (org-mode . org-download-enable))
   :custom
   (org-download-image-dir (concat org-roam-directory "/images")))
 
 (use-package org-capture
-  :ensure nil
+  :straight nil
   :custom
   (org-default-notes-file (concat org-roam-directory "/inbox.org"))
   (org-capture-templates
@@ -2182,6 +2235,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
     (kbd "<leader> n c") 'org-capture))
 
 (use-package org-appear
+  :straight (:host github :repo "awth13/org-appear")
   :hook (org-mode . org-appear-mode)
   :custom
   (org-hide-emphasis-markers t)
@@ -2190,7 +2244,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
   (org-appear-autosubmarkers t))
 
 (use-package org-id
-  :ensure nil ; built into Emacs
+  :straight nil ; built into Emacs
   :custom
   (org-id-track-globally t)
   (org-id-link-to-org-use-id 'create-if-interactive-and-no-custom-alist)
@@ -2230,6 +2284,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 
 ;; Get lua
 (use-package lua-mode
+  :straight (:host github :repo "immerrr/lua-mode")
   :ensure t
   :mode "\\.lua\\'"
   :custom
@@ -2294,6 +2349,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
   (my/eshell-in-dir default-directory))
 
 (use-package eat
+  :straight (:host codeberg :repo "akib/emacs-eat")
   :hook ((eshell-load . eat-eshell-visual-command-mode)
          (eshell-load . eat-eshell-mode))
 
@@ -2361,6 +2417,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 ;; Make Corfu popups work in Terminal (emacs -nw)
 ;; ---------------------------------------------------
 (use-package corfu-terminal
+  :straight (:host codeberg :repo "akib/emacs-corfu-terminal")
   ;; Only load this if we are running in a terminal
   :unless (display-graphic-p)
   :config
@@ -2394,6 +2451,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 ;; ==========================================
 
 (use-package ef-themes
+  :straight (:host github :repo "protesilaos/ef-themes")
   :config
   ;; Load our local theme file
   (let ((theme-file (expand-file-name "local-theme.el" user-emacs-directory)))
@@ -2443,6 +2501,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 ;; ==========================================
 
 (use-package elfeed
+  :straight (:host github :repo "skeeto/elfeed")
   :custom
   (elfeed-use-curl t)
   (elfeed-search-filter "@6-months-ago ")
@@ -2470,6 +2529,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 
 ;; Install and setup elfeed-org
 (use-package elfeed-org
+  :straight (:host github :repo "remyhonig/elfeed-org")
   :after elfeed
   :config
   ;; Initialize elfeed-org
@@ -2485,6 +2545,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 (setq large-file-warning-threshold (* 80 1024 1024))
 
 (use-package pdf-tools
+  :straight (:host github :repo "vedang/pdf-tools")
   :mode ("\\.pdf\\'" . pdf-view-mode) 
   :hook ((pdf-view-mode . pdf-view-midnight-minor-mode)
          ;; FIX 1: Move this here! Now it registers before pdf-tools even loads.
@@ -2580,6 +2641,7 @@ Displays the calculated breadcrumb path in the echo area."
     (evil-define-key 'normal pdf-view-mode-map (kbd "P") #'my/pdf-show-full-path)))
 
 (use-package saveplace-pdf-view
+  :straight (:host github :repo "nicolaisingh/saveplace-pdf-view")
   :after pdf-tools)
 
 ;; ==========================================
@@ -2599,6 +2661,7 @@ Displays the calculated breadcrumb path in the echo area."
 
 ;; Add this before your Corfu and Eglot configs
 (use-package yasnippet
+  :straight (:host github :repo "joaotavora/yasnippet")
   :config
   (yas-global-mode 1))
 
@@ -2607,6 +2670,7 @@ Displays the calculated breadcrumb path in the echo area."
 
 ;; 1. Setup Corfu for modern, lightweight auto-completion popups
 (use-package corfu
+  :straight (:host github :repo "minad/corfu")
   :custom
   (corfu-auto nil)              ;; NO automatic popup while typing
   (corfu-cycle t)               ;; Allow cycling from bottom back to top
@@ -2648,7 +2712,7 @@ Displays the calculated breadcrumb path in the echo area."
 
 ;; 2. Setup Eglot (The built-in LSP client)
 (use-package eglot
-  :ensure nil
+  :straight nil
   ;; 👇 BASH ADDED HERE 👇
   :hook ((c-mode c++-mode python-mode sh-mode bash-ts-mode) . eglot-ensure)
   :custom
@@ -3083,6 +3147,7 @@ Displays the calculated breadcrumb path in the echo area."
 ;; ==========================================
 
 (use-package imenu-list
+  :straight (:host github :repo "bmag/imenu-list")
   :custom
   ;; Put the side-pane on the right (like VSCode) instead of the left
   (imenu-list-position 'right)
@@ -3106,6 +3171,7 @@ Displays the calculated breadcrumb path in the echo area."
 ;; Avy: Jump to any place on the screen
 ;; =========================================
 (use-package avy
+  :straight (:host github :repo "abo-abo/avy")
   :ensure t
   :custom
   (avy-timeout-seconds 0.1)
@@ -3134,6 +3200,7 @@ Displays the calculated breadcrumb path in the echo area."
 ;; make copy pasting xclip compliant
 ;; =========================================
 (use-package xclip
+  :straight (:host github :repo "emacsmirror/xclip")
   :ensure t
   :config
   (xclip-mode 1))
@@ -3144,6 +3211,7 @@ Displays the calculated breadcrumb path in the echo area."
 ;; =========================================
 
 (use-package dape
+  :straight (:host github :repo "svaante/dape")
   :ensure t
   :hook
   (kill-emacs . dape-breakpoint-save)
