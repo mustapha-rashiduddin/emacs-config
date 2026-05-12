@@ -176,7 +176,7 @@
   (when (member my/font-arabic-name (font-family-list))
     (set-fontset-font t 'arabic 
                       (font-spec :family my/font-arabic-name 
-                                 :size 55
+                                 ;:size 55
                                  :weight 'normal))) ;; <-- This blocks the semi-bold bleed-over!
 
   ;; 3. Symbols
