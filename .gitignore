@@ -20,10 +20,12 @@ elfeed.org
 elfeed.org~
 url/
 .#init.el
-.gitignore
 *.point
 speed-dial.sqlite
 full_history.txt
 ielm-history.eld
 dape-breakpoints
-straight/
+straight/build
+straight/build-cache.el
+straight/modified/
+straight/repos/

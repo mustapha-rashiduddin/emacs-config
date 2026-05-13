@@ -40,53 +40,53 @@
 ;; straight.el silently ignores `:commit` in recipes. The ONLY way to pin 
 ;; commits is via its lockfile. We write it programmatically here so that 
 ;; when straight clones a package, it natively checks out these exact hashes.
-(let ((lockfile (expand-file-name "straight/versions/default.el" user-emacs-directory))
-      (pinned-commits
-       '(("org"                . "13b24185576b4063021378cf8c77577bb61c1c31")
-         ;;("transient"          . "7131bec61e558e022ce75e2d2d5e55c748fcf8e0")
-         ("evil"               . "b06f644bdb5b06c6ac46c11b0259f15ac9ffd5da")
-         ("evil-collection"    . "a18d16675c194203c00f46334fd7c22f46e7671a")
-         ("evil-org"           . "233f8b723351801910527b4c39c1f85652131f6e")
-         ("org-roam"           . "b4857fd7a140361883dfb95e1193ee42698a4afb")
-         ("org-roam-ui"        . "fc909566222669dd1ae9c642e2898c3d67bc6fb5")
-         ;;("org-transclusion"   . "4938093")
-         ("lua-mode"           . "eb067bce0e832ae0dc6d06d739faffaae8e514de")
-         ;;("eat"                . "c91451f")
-         ;;("corfu-terminal"     . "501548c")
-         ;;("ef-themes"          . "16681ce")
-         ("elfeed"             . "66cfe43dfc61d0b56d9e4e72aba3dfab0ed4bdf7")
-         ("elfeed-org"         . "d62d23e25c5e3be3d70b7fbe1eaeb6e43f93a061")
-         ("pdf-tools"          . "5245f092e35712df6559a7782a93bb61896175dd")
-         ("saveplace-pdf-view" . "79e76562bc5ef94c12837035fe504f07be8a8f25")
-         ("corfu"              . "abfe0003d71b61ffdcf23fc6e546643486daeb69")
-         ("imenu-list"         . "1447cdc8c0268e332fb4adc0c643702245d31bde")
-         ("avy"                . "be612110cb116a38b8603df367942e2bb3d9bdbe")
-         ;;("xclip"              . "9ab2251")
-         ;;("dape"               . "2d63a41")
-         ("yasnippet"          . "272b6067f17675eb4eb001a7a933a52e730152cf")
-         ("org-download"       . "19e166f0a8c539b4144cfbc614309d47a9b2a9b7")
-         ("org-appear"         . "81eba5d7a5b74cdb1bad091d85667e836f16b997")
-         
-         ;; Your hidden transitive dependencies
-         ("async"              . "5cae78dc0a75cb86df300939af0b00035bc1c045")
-         ("cond-let"           . "538a4162cc5b39cee2e0f85609ffc1f1716cdf8d")
-         ("emacsql"            . "d654e4fb1d0f5addd998982754519d144df4bd4c")
-         ("websocket"          . "3210187c107cdbb075b2e47454068a22f38213fc")
-         ("goto-chg"           . "3baa71e27b233a966bf4168ba7432cc646658b15")
-         ("hydra"              . "317e1de33086637579a7aeb60f77ed0405bf359b")
-         ("llama"              . "de61773fc378d40f478f8daf67543a51889ecded")
-         ("modus-themes"       . "a4264088b7782e135d2a6210c932eb11cc5fbecd")
-         ;;("popon"              . "bf8174c")
-         ("tablist"            . "5f7b71a92bfb25418d7da86ad9c45f14b149496f"))))
-  
-  ;; Create the directory if missing
-  (unless (file-exists-p (file-name-directory lockfile))
-    (make-directory (file-name-directory lockfile) t))
-    
-  ;; Write the lockfile
-  (with-temp-file lockfile
-    (let ((print-level nil) (print-length nil))
-      (prin1 pinned-commits (current-buffer)))))
+;;(let ((lockfile (expand-file-name "straight/versions/default.el" user-emacs-directory))
+;;      (pinned-commits
+;;       '(("org"                . "13b24185576b4063021378cf8c77577bb61c1c31")
+;;         ;;("transient"          . "7131bec61e558e022ce75e2d2d5e55c748fcf8e0")
+;;         ("evil"               . "b06f644bdb5b06c6ac46c11b0259f15ac9ffd5da")
+;;         ("evil-collection"    . "a18d16675c194203c00f46334fd7c22f46e7671a")
+;;         ("evil-org"           . "233f8b723351801910527b4c39c1f85652131f6e")
+;;         ("org-roam"           . "b4857fd7a140361883dfb95e1193ee42698a4afb")
+;;         ("org-roam-ui"        . "fc909566222669dd1ae9c642e2898c3d67bc6fb5")
+;;         ;;("org-transclusion"   . "4938093")
+;;         ("lua-mode"           . "eb067bce0e832ae0dc6d06d739faffaae8e514de")
+;;         ;;("eat"                . "c91451f")
+;;         ;;("corfu-terminal"     . "501548c")
+;;         ;;("ef-themes"          . "16681ce")
+;;         ("elfeed"             . "66cfe43dfc61d0b56d9e4e72aba3dfab0ed4bdf7")
+;;         ("elfeed-org"         . "d62d23e25c5e3be3d70b7fbe1eaeb6e43f93a061")
+;;         ("pdf-tools"          . "5245f092e35712df6559a7782a93bb61896175dd")
+;;         ("saveplace-pdf-view" . "79e76562bc5ef94c12837035fe504f07be8a8f25")
+;;         ("corfu"              . "abfe0003d71b61ffdcf23fc6e546643486daeb69")
+;;         ("imenu-list"         . "1447cdc8c0268e332fb4adc0c643702245d31bde")
+;;         ("avy"                . "be612110cb116a38b8603df367942e2bb3d9bdbe")
+;;         ;;("xclip"              . "9ab2251")
+;;         ;;("dape"               . "2d63a41")
+;;         ("yasnippet"          . "272b6067f17675eb4eb001a7a933a52e730152cf")
+;;         ("org-download"       . "19e166f0a8c539b4144cfbc614309d47a9b2a9b7")
+;;         ("org-appear"         . "81eba5d7a5b74cdb1bad091d85667e836f16b997")
+;;         
+;;         ;; Your hidden transitive dependencies
+;;         ("async"              . "5cae78dc0a75cb86df300939af0b00035bc1c045")
+;;         ("cond-let"           . "538a4162cc5b39cee2e0f85609ffc1f1716cdf8d")
+;;         ("emacsql"            . "d654e4fb1d0f5addd998982754519d144df4bd4c")
+;;         ("websocket"          . "3210187c107cdbb075b2e47454068a22f38213fc")
+;;         ("goto-chg"           . "3baa71e27b233a966bf4168ba7432cc646658b15")
+;;         ("hydra"              . "317e1de33086637579a7aeb60f77ed0405bf359b")
+;;         ("llama"              . "de61773fc378d40f478f8daf67543a51889ecded")
+;;         ("modus-themes"       . "a4264088b7782e135d2a6210c932eb11cc5fbecd")
+;;         ;;("popon"              . "bf8174c")
+;;         ("tablist"            . "5f7b71a92bfb25418d7da86ad9c45f14b149496f"))))
+;;  
+;;  ;; Create the directory if missing
+;;  (unless (file-exists-p (file-name-directory lockfile))
+;;    (make-directory (file-name-directory lockfile) t))
+;;    
+;;  ;; Write the lockfile
+;;  (with-temp-file lockfile
+;;    (let ((print-level nil) (print-length nil))
+;;      (prin1 pinned-commits (current-buffer)))))
 
 (straight-use-package 'use-package)
 (setq straight-use-package-by-default t)
