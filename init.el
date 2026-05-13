@@ -94,7 +94,6 @@
 ;; You MUST keep custom repos for forks like org and transient, 
 ;; but the fake :commit keywords have been removed.
 (straight-use-package '(org :host github :repo "emacs-straight/org-mode"))
-;;(straight-use-package '(transient :host github :repo "magit/transient"))
 (straight-use-package 'transient)
 
 ;; ==========================================
@@ -139,7 +138,7 @@
 (menu-bar-mode -1)      ;; Hide the top menu bar
 (tool-bar-mode -1)      ;; Hide the icon tool bar
 (scroll-bar-mode -1)    ;; Hide the side scroll bars
-;; (setq inhibit-startup-screen t) ;; Skip the splash screen
+(setq inhibit-startup-screen t) ;; Skip the splash screen
 
 ;; get rid of annoying bell sound
 (setq ring-bell-function 'ignore)
@@ -319,6 +318,14 @@
 ;; ==========================================
 
 (declare-function face-remap-remove-relative "face-remap")
+
+;; Tell the Byte-Compiler that these functions exist elsewhere
+(declare-function eshell-send-input "esh-mode")
+(declare-function pdf-info-running-p "pdf-info")
+(declare-function pdf-info-outline "pdf-info")
+(declare-function image-mode-window-get "image-mode")
+(declare-function evil-org-set-key-theme "evil-org")
+(declare-function evil-org-agenda-set-keys "evil-org-agenda")
 
 (defvar-local my/evil-visual-extend-state 'unknown)
 (defvar-local my/evil-region-remap-cookie nil)
