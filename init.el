@@ -17,6 +17,8 @@
 (when (file-exists-p custom-file)
   (load custom-file))
 
+(xterm-mouse-mode 1)
+
 ;; ==========================================
 ;; 1. Setup Package Archives & Use-Package
 ;; ==========================================
@@ -135,9 +137,9 @@
 ;; Start Emacs in true full-screen mode (covers the bottom taskbar)
 (add-to-list 'default-frame-alist '(fullscreen . fullboth))
 
-(menu-bar-mode -1)      ;; Hide the top menu bar
-(tool-bar-mode -1)      ;; Hide the icon tool bar
-(scroll-bar-mode -1)    ;; Hide the side scroll bars
+;(menu-bar-mode -1)      ;; Hide the top menu bar
+;(tool-bar-mode -1)      ;; Hide the icon tool bar
+;(scroll-bar-mode -1)    ;; Hide the side scroll bars
 (setq inhibit-startup-screen t) ;; Skip the splash screen
 
 ;; get rid of annoying bell sound
