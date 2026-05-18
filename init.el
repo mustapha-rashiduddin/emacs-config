@@ -998,18 +998,21 @@ If already inside the code body of a block, do nothing."
   ;; 1. Save the Org file
   (save-buffer)
   
-  ;; 2. Tangle and capture the list of generated files
-  (let ((tangled-files (org-babel-tangle)))
-    ;; 3. Loop through the generated files
-    (dolist (file tangled-files)
-      (let ((buf (get-file-buffer file)))
-        ;; 4. If the file is currently open in Emacs, refresh it silently
-        (when buf
-          (with-current-buffer buf
-            ;; (revert-buffer IGNORE-AUTO NOCONFIRM PRESERVE-MODES)
-            (revert-buffer t t t))))))
-            
-  ;; 5. Tell the user it worked
+  ;; 2. FORCE Emacs to use 'file:' links by temporarily disabling IDs!
+  (let ((org-id-link-to-org-use-id nil))
+    
+    ;; 3. Tangle and capture the list of generated files
+    (let ((tangled-files (org-babel-tangle)))
+      
+      ;; 4. Loop through the generated files
+      (dolist (file tangled-files)
+        (let ((buf (get-file-buffer file)))
+          ;; 5. If the file is currently open in Emacs, refresh it silently
+          (when buf
+            (with-current-buffer buf
+              (revert-buffer t t t)))))))
+              
+  ;; 6. Tell the user it worked
   (message "Silently tangled and refreshed open files!"))
 
 ;; Bind the new quiet function to Evil
@@ -2298,6 +2301,11 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
   :mode "\\.lua\\'"
   :custom
   (lua-indent-level 2)) ; Change to 4 if you prefer wider indents
+
+;; Get nix
+(use-package nix-mode
+  :straight (:host github :repo "NixOS/nix-mode")
+  :mode "\\.nix\\'")
 
 ;; ==========================================
 ;; SPC n p now ALWAYS inserts [[id:UUID][title]] 
