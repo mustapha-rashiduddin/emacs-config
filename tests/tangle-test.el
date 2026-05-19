@@ -1,7 +1,7 @@
 (require 'cl-lib)
 
 (defun my/visual-autopilot-test ()
-  "Visual test: Create C++, :org-it, split blocks, :tangle, cursor -> g m -> g c."
+  "Visual test: Create C++, :org-it, split blocks, :tangle, cursor -> g m -> edit -> detangle -> g c."
   (interactive)
   (let* ((test-dir "/tmp/emacs-autopilot/")
          (cpp-file (concat test-dir "diagonal.cpp")))
@@ -31,22 +31,25 @@
       (my/org-it))
     (sit-for 1.5)
 
-    ;; 4. SPLIT IT UP
+    ;; 4. SPLIT IT UP (RESTORED THE PROPERTY LINE!)
     (message "🎬 3. Splitting into 3 blocks (via #+name)...")
     (let ((target-buf (or (get-buffer "diagonal.cpp.org") (current-buffer))))
       (switch-to-buffer target-buf)
       (widen)
       (erase-buffer)
       
-      ;; Simulating the manual split!
+      ;; ---> THIS IS THE FIX: We must keep the property and ID lines! <---
+      (insert "#+PROPERTY: header-args:cpp :tangle diagonal.cpp :comments link :main no\n\n")
+      (insert "* Diagonal\n:PROPERTIES:\n:ID:       " (org-id-uuid) "\n:END:\n\n")
+      
       (insert "#+name: system-libraries
-#+begin_src cpp :tangle diagonal.cpp
+#+begin_src cpp
 #include <iostream>
 #include <vector>
 #+end_src
 
 #+name: diagonal-matrix-class
-#+begin_src cpp :tangle diagonal.cpp
+#+begin_src cpp
 template<typename T>
 class DiagonalMatrix {
 	std::vector<T> elements;
@@ -61,7 +64,7 @@ public:
 #+end_src
 
 #+name: main-function
-#+begin_src cpp :tangle diagonal.cpp
+#+begin_src cpp
 int main() {
   	DiagonalMatrix<int> diag(5);
   	diag[2, 2] = 42; 
@@ -85,8 +88,7 @@ int main() {
           (set-window-point (selected-window) (point))
           (recenter) 
           (message "✅ SUCCESS: Cursor is now on std::cout!"))
-      (message "❌ FAILED: 'std::cout' not found! Buffer starts with: \n%s" 
-               (buffer-substring-no-properties (point-min) (min (point-max) 200))))
+      (message "❌ FAILED: 'std::cout' not found!"))
 
     (redisplay)
     (sit-for 1.5)
@@ -101,9 +103,30 @@ int main() {
     (my/org-jump-drill-down)
     (sit-for 2.0)
 
-    ;; 8. SURFACE UP (g c)
-    (message "🎬 7. Pressing 'g c' (Surface Up) -> jumping back to Org file...")
+    ;; 8. EDIT THE C++ FILE (Inside 'diagonal-matrix-class')
+    (message "🎬 7. Moving to 'DiagonalMatrix', inserting comment, and saving...")
+    (goto-char (point-min))
+    (if (search-forward "std::vector<T> elements;" nil t)
+        (progn
+          (end-of-line)
+          (insert "\n\t// AUTOPILOT DETANGLE TEST COMMENT")
+          (save-buffer) ;; Detangling requires the file to be saved to disk
+          (set-window-point (selected-window) (point))
+          (recenter)
+          (message "✅ SUCCESS: Added test comment in C++ file!"))
+      (message "❌ FAILED: Could not find 'std::vector<T> elements;' inside C++ file!"))
+    
+    (redisplay)
+    (sit-for 1.5)
+
+    ;; 9. DETANGLE
+    (message "🎬 8. Running my-quiet-detangle...")
+    (my-quiet-detangle)
+    (sit-for 1.5)
+
+    ;; 10. SURFACE UP (g c)
+    (message "🎬 9. Pressing 'g c' (Surface Up) -> jumping back to Org file...")
     (my/org-jump-surface-up)
     (sit-for 2.0)
 
-    (message "✅ AUTOPILOT COMPLETE! The g m / g c math is flawless.")))
+    (message "✅ AUTOPILOT COMPLETE! Detangle and Surface Up successful.")))
