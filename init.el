@@ -978,22 +978,18 @@ If already inside the code body of a block, do nothing."
   ;; 1. Save the current C++ file first (forces detangle to see your latest changes)
   (save-buffer)
   
-  ;; 2. FORCE Emacs to read standard 'file:' links, exactly like we did for tangling!
-  (let ((org-id-link-to-org-use-id nil))
+  ;; 2. Save the current window/split configuration
+  (save-window-excursion
+    ;; 3. Run the detangle command
+    (org-babel-detangle)
     
-    ;; 3. Save the current window/split configuration
-    (save-window-excursion
-      
-      ;; 4. Run the detangle command safely
-      (org-babel-detangle)
-      
-      ;; 5. Find the Org file that was just updated and save it automatically
-      (dolist (buf (buffer-list))
-        (with-current-buffer buf
-          (when (and (eq major-mode 'org-mode) (buffer-modified-p))
-            (save-buffer))))))
+    ;; 4. Find the Org file that was just updated and save it automatically
+    (dolist (buf (buffer-list))
+      (with-current-buffer buf
+        (when (and (eq major-mode 'org-mode) (buffer-modified-p))
+          (save-buffer)))))
           
-  ;; 6. Tell the user it worked without moving their cursor or splitting the screen
+  ;; 5. Tell the user it worked without moving their cursor or splitting the screen
   (message "Silently detangled and saved back to Org!"))
 
 (defun my-quiet-tangle ()
