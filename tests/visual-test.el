@@ -32,11 +32,6 @@
       (my/org-it))
     (sit-for 1.5)
 
-    ;; 4. TANGLE
-    (message "🎬 3. Running :tangle...")
-    (my-quiet-tangle)
-    (sit-for 1.5)
-
     ;; 5. MOVE CURSOR DEEP INTO THE CODE
     (message "🎬 4. Moving cursor to 'std::cout' inside the code block...")
     
@@ -68,14 +63,19 @@
     (redisplay)
     (sit-for 1.5)
 
+    ;; 4. TANGLE
+    (message "🎬 3. Running :tangle...")
+    (my-quiet-tangle)
+    (sit-for 1.5)
+
     ;; 7. DRILL DOWN (g m)
     (message "🎬 5. Pressing 'g m' (Drill Down) -> jumping to C++ file...")
     (my/org-jump-drill-down)
     (sit-for 2.0)
 
-;;    ;; 7. SURFACE UP (g c)
-;;    (message "🎬 6. Pressing 'g c' (Surface Up) -> jumping back to Org file...")
-;;    (my/org-jump-surface-up)
-;;    (sit-for 2.0)
+    ;; 7. SURFACE UP (g c)
+    (message "🎬 6. Pressing 'g c' (Surface Up) -> jumping back to Org file...")
+    (my/org-jump-surface-up)
+    (sit-for 2.0)
 
     (message "✅ AUTOPILOT COMPLETE! The g m / g c math is flawless.")))
