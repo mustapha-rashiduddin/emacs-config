@@ -918,6 +918,33 @@ _v_: %s(my/sd-name 'left 8)  _/_: %s(my/sd-name 'right 8)  _q_: Quit HUD     _I_
 (defvar my/speed-dial-hud-buffer-name " *Speed-Dial-HUD*")
 (defvar my/speed-dial-global-hud-buffer-name " *Speed-Dial-Global-HUD*")
 
+;; ==========================================
+;; NEW ADDITION: Safe Mouse Click Handler
+;; ==========================================
+(defun my/sd-hud-handle-click (event)
+  "Handle mouse clicks on the speed dial HUD safely.
+Swallows double/triple clicks to prevent Emacs native crashes."
+  (interactive "e")
+  (ignore-errors
+    ;; Only trigger the jump on a standard single-click release ('mouse-1).
+    ;; All other rapid/double/drag clicks are safely swallowed and do nothing.
+    (when (eq (car-safe event) 'mouse-1)
+      (let* ((start (event-start event))
+             (pos (posn-point start)))
+        (when (number-or-marker-p pos)
+          (let* ((window (posn-window start))
+                 (buffer (window-buffer window))
+                 (tag (with-current-buffer buffer (get-text-property pos 'sd-tag)))
+                 (slot (with-current-buffer buffer (get-text-property pos 'sd-slot))))
+            (when (and tag slot)
+              (let ((target-win (get-mru-window nil nil 'nomini)))
+                (when target-win
+                  (select-window target-win)
+                  (my/speed-dial-jump tag slot))))))))))
+
+;; ==========================================
+;; REPLACEMENT 1: Text Generator (PERFECT KEYBOARD REPLICA)
+;; ==========================================
 (defun my/sd-generate-hud-string (keys side active-buf active-file)
   (let* ((items (cl-loop for i from 1 to 8
                          for k in keys
@@ -930,21 +957,54 @@ _v_: %s(my/sd-name 'left 8)  _/_: %s(my/sd-name 'right 8)  _q_: Quit HUD     _I_
                          unless (string= clean-name "-")
                          collect 
                          (let* ((a-path (and active-file (expand-file-name (substring-no-properties active-file))))
-                                ;; EXACT MATCHING powered directly by the Emacs bookmark record paths!
                                 (is-active (if (and target-path a-path)
                                                (string= target-path a-path)
-                                             ;; Fallback for Magit/Dired buffers without files
                                              (let ((b-name (and active-buf (substring-no-properties active-buf))))
                                                (and b-name (string= clean-name b-name)))))
-                                
                                 (sep (if is-active "→" ")"))
                                 (key-face '(:weight bold :underline (:style wave)))
-                                (text-face (if is-active '(:weight bold :inverse-video t) nil)))
+                                (text-face (if is-active '(:weight bold :inverse-video t) nil))
+                                (formatted-text (format "%s%s %s"
+                                                        (propertize k 'face key-face)
+                                                        (propertize sep 'face key-face)
+                                                        (if text-face (propertize clean-name 'face text-face) clean-name)))
+                                (tag (if (eq side 'left) "global" my/current-speed-dial-tag))
+                                (slot i)
+                                (click-map (make-sparse-keymap)))
                            
-                           (format "%s%s %s"
-                                   (propertize k 'face key-face)
-                                   (propertize sep 'face key-face)
-                                   (if text-face (propertize clean-name 'face text-face) clean-name)))))
+                           ;; 1. Absorb the press down
+                           (define-key click-map [down-mouse-1] #'ignore)
+                           
+                           ;; 2. On Release: Shift to main window, then execute the jump
+                           (define-key click-map [mouse-1]
+                             `(lambda (event)
+                                (interactive "e")
+                                
+                                ;; A: Steal focus back to the main editing window using YOUR exact logic
+                                (let ((best-win nil)
+                                      (best-time -1))
+                                  (walk-windows (lambda (w)
+                                                  (unless (member (buffer-name (window-buffer w))
+                                                                  (list my/speed-dial-hud-buffer-name
+                                                                        my/speed-dial-global-hud-buffer-name))
+                                                    (let ((time (window-use-time w)))
+                                                      (when (> time best-time)
+                                                        (setq best-time time
+                                                              best-win w)))))
+                                                'nomini)
+                                  (if best-win
+                                      (select-window best-win)
+                                    (other-window 1)))
+
+                                ;; B: Now that we are safely in the main window, execute the EXACT 
+                                ;; logic that pressing the j/k/l keys triggers!
+                                (my/speed-dial-jump ,tag ,slot)))
+                           
+                           (propertize formatted-text
+                                       'mouse-face 'highlight
+                                       'pointer 'hand
+                                       'help-echo (format "Click to jump to %s" clean-name)
+                                       'keymap click-map))))
          (max-width (- (frame-width) 0))
          (current-len 0)
          (body ""))
@@ -968,6 +1028,9 @@ _v_: %s(my/sd-name 'left 8)  _/_: %s(my/sd-name 'right 8)  _q_: Quit HUD     _I_
 (defun my/speed-dial-global-hud-content (&optional active-buf active-file)
   (my/sd-generate-hud-string '("a" "s" "d" "f" "z" "x" "c" "v") 'left active-buf active-file))
 
+;; ==========================================
+;; REPLACEMENT 2: Window Setup (Clean Background)
+;; ==========================================
 (defun my/setup-hud-window (buf-name content-string window-side)
   (with-current-buffer (get-buffer-create buf-name)
     (let ((inhibit-read-only t))
@@ -987,17 +1050,12 @@ _v_: %s(my/sd-name 'left 8)  _/_: %s(my/sd-name 'right 8)  _q_: Quit HUD     _I_
       (display-line-numbers-mode -1))
     (setq display-line-numbers nil)
 
+    ;; Only background/empty-space clicks hit this map.
+    ;; Text clicks will be intercepted by the text properties above!
     (let ((map (make-sparse-keymap)))
-      (define-key map [mouse-1] 'ignore)
-      (define-key map [down-mouse-1] 'ignore)
-      (define-key map [drag-mouse-1] 'ignore)
-      (define-key map [mouse-2] 'ignore)
-      (define-key map [down-mouse-2] 'ignore)
-      (define-key map [mouse-3] 'ignore)
-      (define-key map [down-mouse-3] 'ignore)
-      (define-key map[double-mouse-1] 'ignore)
-      (define-key map [triple-mouse-1] 'ignore)
-      (define-key map [drag-n-drop] 'ignore)
+      (define-key map [mouse-1] #'ignore)
+      (define-key map [down-mouse-1] #'ignore)
+      (define-key map [drag-mouse-1] #'ignore)
       (use-local-map map)))
     
   (let ((window-resize-pixelwise t) 
