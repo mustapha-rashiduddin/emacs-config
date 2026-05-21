@@ -3484,3 +3484,16 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; Load the specific language debuggers
 (require 'cpp)
 (require 'bash)
+
+(easy-menu-define my-custom-jump-menu global-map
+  "My custom menu for jump commands."
+  '("Jump"  
+    ["menu-mode" my/speed-dial-menu-mode t]
+    ["menu" my-force-menu t]  ;; <--- Now calls your new trick function
+    ["command-mode" my/speed-dial-command-mode t]))
+
+(defun my-force-menu ()
+  "First run menu-mode, then open the speed dial hydra."
+  (interactive) ;; <--- This makes it usable in menus/keybindings
+  (my/speed-dial-menu-mode)
+  (hydra-speed-dial/body))
