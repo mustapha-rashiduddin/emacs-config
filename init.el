@@ -3497,3 +3497,21 @@ Format: \\='((mode1 mode2) . custom-start-function)")
   (interactive) ;; <--- This makes it usable in menus/keybindings
   (my/speed-dial-menu-mode)
   (hydra-speed-dial/body))
+
+(with-eval-after-load 'evil
+  ;; --- 1. The "Smart" CUA Layer (VS Style) ---
+  (define-key evil-emacs-state-map (kbd "C-v") 'cua-paste)
+  (define-key evil-emacs-state-map (kbd "C-c") 'cua-copy-handler)
+  (define-key evil-emacs-state-map (kbd "C-x") 'cua-cut-handler)
+
+  ;; --- 2. Standard Global Keys ---
+  (define-key evil-emacs-state-map (kbd "C-s") 'save-buffer)
+  (define-key evil-emacs-state-map (kbd "C-q") 'save-buffers-kill-terminal)
+  (define-key evil-emacs-state-map (kbd "C-z") 'undo)
+  (define-key evil-emacs-state-map (kbd "C-f") 'isearch-forward)
+  (define-key evil-emacs-state-map (kbd "C-a") 'mark-whole-buffer)
+
+  ;; --- 3. Custom Speed-Dial Functions ---
+  (define-key evil-emacs-state-map (kbd "C-m") 'my/speed-dial-menu-mode)
+  (define-key evil-emacs-state-map (kbd "C-t") 'my-force-menu)
+  (define-key evil-emacs-state-map (kbd "C-p") 'my/speed-dial-command-mode))
