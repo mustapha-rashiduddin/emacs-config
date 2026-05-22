@@ -3515,6 +3515,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (global-set-key (kbd "C-a") 'mark-whole-buffer)
 
 ;; --- 3. Custom Speed-Dial Functions ---
-(global-set-key (kbd "C-m") 'my/speed-dial-menu-mode)
+(global-set-key (kbd "C-k") 'my/speed-dial-menu-mode)
 (global-set-key (kbd "C-t") 'my-force-menu)
 (global-set-key (kbd "C-p") 'my/speed-dial-command-mode)
