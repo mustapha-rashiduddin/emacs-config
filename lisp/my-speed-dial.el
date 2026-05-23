@@ -1185,7 +1185,9 @@ Swallows double/triple clicks to prevent Emacs native crashes."
 ;; 9. KEYBINDINGS
 ;; ==========================================
 
-(evil-define-key 'normal 'global (kbd "<leader> a") 'hydra-speed-dial/body)
+;(evil-define-key 'normal 'global (kbd "<leader> a") 'hydra-speed-dial/body)
+(with-eval-after-load 'evil
+  (evil-global-set-key 'normal (kbd "SPC a") 'hydra-speed-dial/body))
 (evil-define-key 'normal 'global (kbd "<leader> b p") 'my/project-bookmark-jump)
 (evil-define-key 'normal 'global (kbd "<leader> b m") 'my/bookmark-set-absolute)
 (evil-define-key 'normal 'global (kbd "<leader> b t") 'my/bookmark-tag-current-file)

@@ -111,7 +111,7 @@
 	evil-want-C-u-scroll t
     	evil-undo-system 'undo-redo)
   :config
-  (evil-mode 1)
+  ;(evil-mode 1)
   (evil-set-leader 'normal (kbd "SPC"))
   ;; Moved this global keybinding inside the Evil config
   (evil-define-key 'normal 'global (kbd "<leader> f f") 'find-file))
@@ -3523,10 +3523,11 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; <escape> represents the physical key in GUI environments.
 ;(define-key key-translation-map (kbd "<escape>") (kbd "C-g"))
 
-(defun my-smart-gui-escape (prompt)
-  "Translate <escape> to C-g only when evil-mode is OFF."
-  (if (bound-and-true-p evil-local-mode)
-      nil           ;; Evil is ON: Do nothing, let Evil use <escape> normally
-    (kbd "C-g")))   ;; Evil is OFF: Translate <escape> to C-g
+;docker run -it --name my-env -v emacs-cache:/root/.emacs.d -v "$PWD:/workspace" student-emacs-ide:latest
+;(defun my-smart-gui-escape (prompt)
+;  "Translate <escape> to C-g only when evil-mode is OFF."
+;  (if (bound-and-true-p evil-local-mode)
+;      nil           ;; Evil is ON: Do nothing, let Evil use <escape> normally
+;    (kbd "C-g")))   ;; Evil is OFF: Translate <escape> to C-g
 
-(define-key key-translation-map (kbd "<escape>") 'my-smart-gui-escape)
+;(define-key key-translation-map (kbd "<escape>") 'my-smart-gui-escape)
