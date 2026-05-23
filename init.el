@@ -111,7 +111,7 @@
 	evil-want-C-u-scroll t
     	evil-undo-system 'undo-redo)
   :config
-  ;(evil-mode 1)
+  (evil-mode 1)
   (evil-set-leader 'normal (kbd "SPC"))
   ;; Moved this global keybinding inside the Evil config
   (evil-define-key 'normal 'global (kbd "<leader> f f") 'find-file))
@@ -3515,8 +3515,9 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (global-set-key (kbd "C-a") 'mark-whole-buffer)
 
 ;; --- 3. Custom Speed-Dial Functions ---
-(global-set-key (kbd "C-k") 'my/speed-dial-menu-mode)
+(global-set-key (kbd "C-n") 'my/speed-dial-menu-mode)
 (global-set-key (kbd "C-t") 'my-force-menu)
+(global-set-key (kbd "C-p") 'my/speed-dial-command-mode)
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
