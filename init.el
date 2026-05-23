@@ -3523,7 +3523,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; <escape> represents the physical key in GUI environments.
 ;(define-key key-translation-map (kbd "<escape>") (kbd "C-g"))
 
-;docker run -it --name my-env -v emacs-cache:/root/.emacs.d -v "$PWD:/workspace" student-emacs-ide:latest
 ;(defun my-smart-gui-escape (prompt)
 ;  "Translate <escape> to C-g only when evil-mode is OFF."
 ;  (if (bound-and-true-p evil-local-mode)
