@@ -1,6 +1,8 @@
 ;; -*- lexical-binding: t; -*-
-(when (boundp 'native-comp-async-report-warnings-errors)
-  (setq native-comp-async-report-warnings-errors nil))
+;(when (boundp 'native-comp-async-report-warnings-errors)
+;  (setq native-comp-async-report-warnings-errors nil))
+;; Silence background native-compilation warnings
+(setq native-comp-async-report-warnings-errors 'silent)
 ;; Maximize memory for insanely fast startup
 (setq gc-cons-threshold (* 100 1024 1024)) ;; 100 MB
 
@@ -3530,3 +3532,36 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;    (kbd "C-g")))   ;; Evil is OFF: Translate <escape> to C-g
 
 ;(define-key key-translation-map (kbd "<escape>") 'my-smart-gui-escape)
+
+;; ==========================================
+;; Tmux Escape Toggle
+;; ==========================================
+
+;; Keep track of the current state (we assume it starts as true because of your Dockerfile)
+(defvar my-tmux-escape-sends-cg t
+  "State tracker for the Tmux Escape binding.")
+
+(defun my-toggle-tmux-escape ()
+  "Toggles whether Tmux intercepts Escape to send C-g, or leaves Escape alone."
+  (interactive)
+  ;; First, make sure we are actually inside Tmux!
+  (if (not (getenv "TMUX"))
+      (message "Not inside a Tmux session!")
+    
+    ;; If it is currently intercepting, turn it OFF
+    (if my-tmux-escape-sends-cg
+        (progn
+          ;; Run: tmux unbind-key -n Escape
+          (call-process "tmux" nil nil nil "unbind-key" "-n" "Escape")
+          (setq my-tmux-escape-sends-cg nil)
+          (message "Tmux Escape: NORMAL (Evil-mode Escape restored)"))
+      
+      ;; If it is currently off, turn it ON
+      (progn
+        ;; Run: tmux bind-key -n Escape send-keys C-g
+        (call-process "tmux" nil nil nil "bind-key" "-n" "Escape" "send-keys" "C-g")
+        (setq my-tmux-escape-sends-cg t)
+        (message "Tmux Escape: INTERCEPTED (Sends C-g)")))))
+
+;; Bind it to a key. For example, Ctrl-c t
+(global-set-key (kbd "C-c t") 'my-toggle-tmux-escape)
