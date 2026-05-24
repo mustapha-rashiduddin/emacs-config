@@ -3534,34 +3534,35 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;(define-key key-translation-map (kbd "<escape>") 'my-smart-gui-escape)
 
 ;; ==========================================
-;; Tmux Escape Toggle
+;; M-x vim : Toggle Evil & Tmux Escape
 ;; ==========================================
 
-;; Keep track of the current state (we assume it starts as true because of your Dockerfile)
-(defvar my-tmux-escape-sends-cg t
-  "State tracker for the Tmux Escape binding.")
-
-(defun my-toggle-tmux-escape ()
-  "Toggles whether Tmux intercepts Escape to send C-g, or leaves Escape alone."
+(defun vim ()
+  "Toggles `evil-mode` and adjusts Tmux Escape behavior automatically.
+When Evil is ON, Tmux leaves Escape alone so Vim works normally.
+When Evil is OFF, Tmux binds Escape to send C-g for standard Emacs usage."
   (interactive)
-  ;; First, make sure we are actually inside Tmux!
+  
+  ;; Safely toggle evil-mode on or off
+  (if evil-mode
+      (evil-mode -1)
+    (evil-mode 1))
+  
+  ;; Check if we are running inside Tmux
   (if (not (getenv "TMUX"))
-      (message "Not inside a Tmux session!")
+      ;; If not in Tmux, just print the Evil mode state
+      (message "Vim mode is now %s (Not in Tmux)" (if evil-mode "ON" "OFF"))
     
-    ;; If it is currently intercepting, turn it OFF
-    (if my-tmux-escape-sends-cg
+    ;; If we ARE in Tmux, adjust the Tmux Escape binding
+    (if evil-mode
+        ;; IF EVIL IS ON:
+        ;; Unbind Escape in Tmux so it passes straight through to Evil
         (progn
-          ;; Run: tmux unbind-key -n Escape
           (call-process "tmux" nil nil nil "unbind-key" "-n" "Escape")
-          (setq my-tmux-escape-sends-cg nil)
-          (message "Tmux Escape: NORMAL (Evil-mode Escape restored)"))
+          (message "VIM MODE ON: Emacs Escape Restored"))
       
-      ;; If it is currently off, turn it ON
+      ;; IF EVIL IS OFF:
+      ;; Bind Escape to send C-g for standard Emacs behavior
       (progn
-        ;; Run: tmux bind-key -n Escape send-keys C-g
         (call-process "tmux" nil nil nil "bind-key" "-n" "Escape" "send-keys" "C-g")
-        (setq my-tmux-escape-sends-cg t)
-        (message "Tmux Escape: INTERCEPTED (Sends C-g)")))))
-
-;; Bind it to a key. For example, Ctrl-c t
-(global-set-key (kbd "C-c t") 'my-toggle-tmux-escape)
+        (message "VIM MODE OFF: Escape sends C-g")))))
