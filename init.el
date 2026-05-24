@@ -3537,32 +3537,29 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; M-x vim : Toggle Evil & Tmux Escape
 ;; ==========================================
 
+(defvar outside-vim-mode t
+  "Boolean state: TRUE when outside Vim mode, FALSE when inside.")
+
 (defun vim ()
-  "Toggles `evil-mode` and adjusts Tmux Escape behavior automatically.
-When Evil is ON, Tmux leaves Escape alone so Vim works normally.
-When Evil is OFF, Tmux binds Escape to send C-g for standard Emacs usage."
+  "Toggles Evil mode, updates the boolean, and tells Tmux what to do."
   (interactive)
   
-  ;; Safely toggle evil-mode on or off
+  ;; 1. Toggle Evil mode
   (if evil-mode
       (evil-mode -1)
     (evil-mode 1))
   
-  ;; Check if we are running inside Tmux
-  (if (not (getenv "TMUX"))
-    ;; If not in Tmux, just print the Evil mode state
-    (message "Vim mode is now %s (Not in Tmux)" (if evil-mode "ON" "OFF"))
-
-    ;; If we ARE in Tmux, adjust the Tmux Escape binding
-    (if evil-mode
-      ;; IF EVIL IS ON:
-      ;; Unbind Escape in Tmux so it passes straight through to Evil
+  ;; 2. Save the state 
+  (setq outside-vim-mode (not evil-mode))
+  
+  ;; 3. Check the boolean and update Tmux
+  (if outside-vim-mode
       (progn
-	(call-process "tmux" nil nil nil "unbind-key" "-n" "Escape")
-	(message "VIM MODE ON: Emacs Escape Restored"))
-
-      ;; IF EVIL IS OFF:
-      ;; Bind Escape to send C-g for standard Emacs behavior
-      (progn
-	(call-process "tmux" nil nil nil "bind-key" "-n" "Escape" "send-keys" "C-g")
-	(message "VIM MODE OFF: Escape sends C-g")))))
+        ;; TRUE (Vim OFF): Intercept physical Escape, send Emacs a C-g
+        (call-process "tmux" nil nil nil "bind-key" "-n" "Escape" "send-keys" "C-g")
+        (message "VIM OFF: Tmux will now send C-g"))
+    
+    (progn
+      ;; FALSE (Vim ON): Leave Escape alone so Evil gets it normally
+      (call-process "tmux" nil nil nil "unbind-key" "-n" "Escape")
+      (message "VIM ON: Tmux Escape unbound"))))
