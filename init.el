@@ -3534,32 +3534,50 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;(define-key key-translation-map (kbd "<escape>") 'my-smart-gui-escape)
 
 ;; ==========================================
-;; M-x vim : Toggle Evil & Tmux Escape
+;; M-x vim : State-Aware & Buffer-Aware Escape
 ;; ==========================================
 
 (defvar outside-vim-mode t
-  "Boolean state: TRUE when outside Vim mode, FALSE when inside.")
+  "TRUE when outside Vim mode, FALSE when inside.")
+
+(defvar tmux-escape-is-intercepted t
+  "Tracks what Tmux is currently doing. (Starts TRUE because of Dockerfile)")
+
+(defun sync-tmux-escape (&rest _args)
+  "Evaluates Vim state and current buffer, and tells Tmux what to do."
+  ;; 1. Check if we are in eshell (or standard shell/term modes just in case!)
+  (let* ((in-shell (derived-mode-p 'eshell-mode 'shell-mode 'term-mode 'vterm-mode 'comint-mode))
+         ;; 2. We ONLY want C-g if we are outside Vim AND NOT in a shell buffer
+         (should-intercept (and outside-vim-mode (not in-shell))))
+    
+    ;; 3. Only call out to Tmux if the rule actually needs to change
+    (when (not (eq should-intercept tmux-escape-is-intercepted))
+      (if should-intercept
+          (call-process "tmux" nil nil nil "bind-key" "-n" "Escape" "send-keys" "C-g")
+        (call-process "tmux" nil nil nil "unbind-key" "-n" "Escape"))
+      ;; Update our tracker so we don't spam the shell
+      (setq tmux-escape-is-intercepted should-intercept))))
 
 (defun vim ()
-  "Toggles Evil mode, updates the boolean, and tells Tmux what to do."
+  "Toggles Evil mode, updates the boolean, and syncs Tmux."
   (interactive)
   
-  ;; 1. Toggle Evil mode
+  ;; Toggle Evil mode
   (if evil-mode
       (evil-mode -1)
     (evil-mode 1))
   
-  ;; 2. Save the state 
+  ;; Save the state 
   (setq outside-vim-mode (not evil-mode))
   
-  ;; 3. Check the boolean and update Tmux
-  (if outside-vim-mode
-      (progn
-        ;; TRUE (Vim OFF): Intercept physical Escape, send Emacs a C-g
-        (call-process "tmux" nil nil nil "bind-key" "-n" "Escape" "send-keys" "C-g")
-        (message "VIM OFF: Tmux will now send C-g"))
-    
-    (progn
-      ;; FALSE (Vim ON): Leave Escape alone so Evil gets it normally
-      (call-process "tmux" nil nil nil "unbind-key" "-n" "Escape")
-      (message "VIM ON: Tmux Escape unbound"))))
+  ;; Force a sync with Tmux and print message
+  (sync-tmux-escape)
+  (message "VIM %s" (if outside-vim-mode "OFF" "ON")))
+
+;; ------------------------------------------
+;; THE MAGIC HOOKS
+;; ------------------------------------------
+;; Tell Emacs to run our sync function automatically every time 
+;; you change tabs, buffers, or split windows!
+(add-hook 'window-buffer-change-functions #'sync-tmux-escape)
+(add-hook 'window-selection-change-functions #'sync-tmux-escape)
