@@ -2732,15 +2732,12 @@ Displays the calculated breadcrumb path in the echo area."
 ;; 2. Setup Eglot (The built-in LSP client)
 (use-package eglot
   :straight nil
-  ;; 👇 BASH ADDED HERE 👇
   :hook ((c-mode c++-mode python-mode sh-mode bash-ts-mode) . eglot-ensure)
   :custom
   ;; Ignore BOTH auto-formatting on type and inlay hints
   (eglot-ignored-server-capabilities '(:documentOnTypeFormattingProvider :inlayHintProvider))
   :config
-  ;; Tell Eglot to completely ignore Flymake (turns off annoying linting)
-  (add-to-list 'eglot-stay-out-of 'flymake)
-
+  
   (setq eglot-events-buffer-config '(:size 0 :format short))
   (with-eval-after-load 'jsonrpc
     (fset #'jsonrpc--log-event #'ignore))
@@ -2761,7 +2758,10 @@ Displays the calculated breadcrumb path in the echo area."
       (kbd "<leader> c r") 'eglot-rename
       (kbd "<leader> c a") 'eglot-code-actions
       (kbd "<leader> c f") 'eglot-format-buffer
-      (kbd "g D") 'xref-find-references)))
+      (kbd "g D") 'xref-find-references
+      ;; ADD THESE so you can jump between errors quickly!
+      (kbd "[ d") 'flymake-goto-prev-error
+      (kbd "] d") 'flymake-goto-next-error)))
 
 ;; ==========================================
 ;; C/C++ Indentation & Formatting (Linux Style)
@@ -3505,8 +3505,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; =========================================================
 
 ;; --- 1. The "Smart" CUA Layer (VS Style) ---
-;; This single line natively enables smart C-x / C-c / C-v 
-;; WITHOUT breaking the C-x prefix!
 (cua-mode 1)
 
 ;; --- 2. Standard Global Keys ---
@@ -3515,11 +3513,16 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (global-set-key (kbd "C-z") 'undo)
 (global-set-key (kbd "C-f") 'isearch-forward)
 (global-set-key (kbd "C-a") 'mark-whole-buffer)
+(global-set-key (kbd "C-@") 'completion-at-point)  ;; <--- IntelliSense
 
 ;; --- 3. Custom Speed-Dial Functions ---
 (global-set-key (kbd "C-n") 'my/speed-dial-menu-mode)
 (global-set-key (kbd "C-t") 'my-force-menu)
 (global-set-key (kbd "C-p") 'my/speed-dial-command-mode)
+
+;; --- 4. No-Nonsense Code Navigation (Docker/Terminal Safe) ---
+(global-set-key (kbd "M-.") 'my/smart-gd)  ;; Alt + . -> Go to Definition
+(global-set-key (kbd "M-?") 'my/smart-gr)  ;; Alt + ? -> Find References
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
