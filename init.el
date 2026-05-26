@@ -3332,13 +3332,11 @@ Dape's internal API to prevent runtime crashes and compiler warnings."
     (catch 'found
       
       ;; METHOD 1: Check standard Emacs fringe arrows
-      ;; Dape pushes its execution marker here so Emacs can draw the visual arrow.
       (dolist (var overlay-arrow-variable-list)
         (when (and (boundp var)
                    (markerp (symbol-value var))
                    (marker-buffer (symbol-value var)))
           (let ((m (symbol-value var)))
-            ;; Ignore markers in weird popup buffers, only target real files
             (when (buffer-file-name (marker-buffer m))
               (setq target-buf (marker-buffer m)
                     target-pos (marker-position m))
@@ -3360,6 +3358,8 @@ Dape's internal API to prevent runtime crashes and compiler warnings."
     ;; EXECUTE JUMP
     (if target-buf
         (progn
+          ;; 🚨 THE FIX: Strip Dape's sneaky window locks right before jumping!
+          (set-window-dedicated-p (selected-window) nil)
           (switch-to-buffer target-buf)
           (goto-char target-pos)
           (recenter))
@@ -3385,6 +3385,8 @@ Skips over multiple Dape modal hops to land directly on the source."
     
     ;; 3. Instantly switch straight back to the source code buffer
     (when source-buf
+      ;; 🚨 THE FIX: Strip Dape's sneaky window locks right before quitting!
+      (set-window-dedicated-p (selected-window) nil)
       (switch-to-buffer source-buf))))
 
 ;; =========================================
