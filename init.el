@@ -3548,21 +3548,28 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; =========================================
 
 ;; 1. We MUST use strictly named functions.
-(defun my-dape-click-cont () (interactive) (require 'dape) (call-interactively 'dape-continue))
+(defun my-dape-click-start-or-continue ()
+  "Start debugging, or continue if a session is already active."
+  (interactive)
+  (require 'dape)
+  ;; Ask Dape's internal API if there are any live debugger connections
+  (if (and (fboundp 'dape--live-connections) (dape--live-connections))
+      (call-interactively 'dape-continue)
+    (my-dape-start-dispatch)))
+
 (defun my-dape-click-next () (interactive) (require 'dape) (call-interactively 'dape-next))
 (defun my-dape-click-in ()   (interactive) (require 'dape) (call-interactively 'dape-step-in))
 (defun my-dape-click-out ()  (interactive) (require 'dape) (call-interactively 'dape-step-out))
 (defun my-dape-click-quit () (interactive) (require 'dape) (call-interactively 'dape-quit))
 
-;; 2. Build the Tab Bar menu-item list (Removed the | separator)
+;; 2. Build the Tab Bar menu-item list (Merged Start/Continue)
 (defun my-dape-tab-bar-buttons ()
   "Inject custom 1-click debug buttons into the Tab Bar."
-  `((dape-start . (menu-item " [▶  Start] " my-dape-start-dispatch))
-    (dape-cont  . (menu-item "[▶  Continue] " my-dape-click-cont))
-    (dape-next  . (menu-item "[↷  Step Over] " my-dape-click-next))
-    (dape-in    . (menu-item "[↴ Step In] " my-dape-click-in))
-    (dape-out   . (menu-item "[⮤ Step Out] " my-dape-click-out))
-    (dape-quit  . (menu-item "[■ Stop] " my-dape-click-quit))))
+  `((dape-start-cont . (menu-item " [▶  Start/Continue] " my-dape-click-start-or-continue))
+    (dape-next       . (menu-item "[↷  Step Over] " my-dape-click-next))
+    (dape-in         . (menu-item "[↴ Step In] " my-dape-click-in))
+    (dape-out        . (menu-item "[⮤ Step Out] " my-dape-click-out))
+    (dape-quit       . (menu-item "[■ Stop] " my-dape-click-quit))))
 
 ;; 3. Force the Tab Bar to ALWAYS show
 (setq tab-bar-show t)
