@@ -3259,26 +3259,41 @@ Displays the calculated breadcrumb path in the echo area."
 ;; Dape Modal Popup Helpers
 ;; =========================================
 
+;; 🚨 THE TRUE NUCLEAR WINDOW FIX 🚨
+;; 1. Emacs normally refuses to overwrite "dedicated" windows and splits instead.
+;; This tells Emacs's C-core to ignore dedication and forcefully overwrite anyway.
+(setq switch-to-buffer-in-dedicated-window t)
+
+;; 2. The unstoppable global display rule.
+(defun my-dape-nuclear-same-window (buffer alist)
+  "Force buffer into current window, destroying Dape's dedicated locks."
+  (let ((win (selected-window)))
+    ;; Rip the lock off the window if Dape put one there
+    (set-window-dedicated-p win nil)
+    ;; Jam the buffer in natively
+    (set-window-buffer win buffer)
+    win))
+
+(add-to-list 'display-buffer-alist
+             '("^\\*dape-.*\\*"
+               (my-dape-nuclear-same-window)))
+
 (defun my-dape--pop-info (buf-name mode-fn)
-  "Safely open a Dape info buffer,
-   forcing initialization so it's
-   never a dummy file."
+  "Safely open a Dape info buffer, forcing initialization."
   (save-window-excursion (ignore-errors (dape-info)))
   (let ((buf (get-buffer-create buf-name)))
     (with-current-buffer buf
-      ;; Force the buffer into the correct Dape UI mode so it's never a blank text file
       (unless (derived-mode-p mode-fn)
         (funcall mode-fn)))
-    (pop-to-buffer-same-window buf)))
+    ;; Forcefully strip dedication right before switching
+    (set-window-dedicated-p (selected-window) nil)
+    (switch-to-buffer buf)))
 
 (defun my-dape-open-repl ()
   "Switch to the live Dape REPL perfectly in the same window."
   (interactive)
-  ;; Intercept Dape's internal window splitting logic.
-  ;; When dape-repl tries to pop open *dape-repl*, this catches it
-  ;; and forces it into the current full window instead.
-  (let ((display-buffer-alist '(("\\*dape-repl\\*" (display-buffer-same-window)))))
-    (dape-repl)))
+  (set-window-dedicated-p (selected-window) nil)
+  (dape-repl))
 
 (defun my-dape-open-stack ()
   "Switch to ONLY the Stack Trace window."
@@ -3371,6 +3386,25 @@ Skips over multiple Dape modal hops to land directly on the source."
     ;; 3. Instantly switch straight back to the source code buffer
     (when source-buf
       (switch-to-buffer source-buf))))
+
+;; =========================================
+;; Always-On Gutter (Terminal Margin)
+;; =========================================
+
+;; 1. Tell Emacs to globally reserve 2 columns on the left side of every buffer
+(setq-default left-margin-width 2)
+
+;; 2. A function to brutally enforce the gutter on a window
+(defun my-force-gutter-everywhere (window)
+  "Apply the left margin so the gutter never disappears."
+  ;; We exclude the minibuffer (bottom command line) so it doesn't look weird
+  (unless (window-minibuffer-p window)
+    (set-window-margins window left-margin-width)))
+
+;; 3. Attach it to the window manager so it triggers instantly 
+;; whenever you open a file, split a window, or change tabs.
+(add-hook 'window-buffer-change-functions #'my-force-gutter-everywhere)
+(add-hook 'window-state-change-functions #'my-force-gutter-everywhere)
 
 ;; =========================================
 ;; Dape Global Debug Keybindings
