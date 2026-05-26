@@ -3601,7 +3601,9 @@ Format: \\='((mode1 mode2) . custom-start-function)")
     (dape-stack      . (menu-item "[Stack] " my-dape-open-stack))
     (dape-breakpoints. (menu-item "[Breakpoints] " my-dape-open-breakpoints))
     (dape-threads    . (menu-item "[Threads] " my-dape-open-threads))
-    (dape-watch      . (menu-item "[Watch] " my-dape-open-watch))))
+    (dape-watch      . (menu-item "[Watch] " my-dape-open-watch))
+    (dape-arrow      . (menu-item "[Arrow] " my-dape-goto-stopped-line))))
+
 
 ;; 3. Set the layout rules
 (setq tab-bar-show t)
