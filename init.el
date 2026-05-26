@@ -3554,23 +3554,22 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (defun my-dape-click-out ()  (interactive) (require 'dape) (call-interactively 'dape-step-out))
 (defun my-dape-click-quit () (interactive) (require 'dape) (call-interactively 'dape-quit))
 
-;; 2. Build the Tab Bar menu-item list with Symbols!
+;; 2. Build the Tab Bar menu-item list (Removed the | separator)
 (defun my-dape-tab-bar-buttons ()
   "Inject custom 1-click debug buttons into the Tab Bar."
-  `((dape-sep   . (menu-item "   |   " ignore))
-    (dape-start . (menu-item "[▶ Start]" my-dape-start-dispatch))
-    (dape-cont  . (menu-item "[⏩ Continue]" my-dape-click-cont))
-    (dape-next  . (menu-item "[⏭ Next]" my-dape-click-next))
-    (dape-in    . (menu-item "[⏬ Step In]" my-dape-click-in))
-    (dape-out   . (menu-item "[⏫ Step Out]" my-dape-click-out))
-    (dape-quit  . (menu-item "[■ Stop]" my-dape-click-quit))))
+  `((dape-start . (menu-item " [▶  Start] " my-dape-start-dispatch))
+    (dape-cont  . (menu-item "[▶  Continue] " my-dape-click-cont))
+    (dape-next  . (menu-item "[↷  Step Over] " my-dape-click-next))
+    (dape-in    . (menu-item "[↴ Step In] " my-dape-click-in))
+    (dape-out   . (menu-item "[⮤ Step Out] " my-dape-click-out))
+    (dape-quit  . (menu-item "[■ Stop] " my-dape-click-quit))))
 
 ;; 3. Force the Tab Bar to ALWAYS show
 (setq tab-bar-show t)
 (tab-bar-mode 1)
 
-;; 4. Left-aligned so mouse coordinates match text perfectly!
-(setq tab-bar-format '(tab-bar-format-tabs my-dape-tab-bar-buttons))
+;; 4. THE FIX: Remove `tab-bar-format-tabs`! This deletes the *scratch* tabs entirely.
+(setq tab-bar-format '(my-dape-tab-bar-buttons))
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
