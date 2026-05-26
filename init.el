@@ -3265,7 +3265,7 @@ Displays the calculated breadcrumb path in the echo area."
 (setq switch-to-buffer-in-dedicated-window t)
 
 ;; 2. The unstoppable global display rule.
-(defun my-dape-nuclear-same-window (buffer alist)
+(defun my-dape-nuclear-same-window (buffer _alist)
   "Force buffer into current window, destroying Dape's dedicated locks."
   (let ((win (selected-window)))
     ;; Rip the lock off the window if Dape put one there
@@ -3367,7 +3367,7 @@ Dape's internal API to prevent runtime crashes and compiler warnings."
 
 (defun my-dape-quit-window ()
   "Bulletproof exit: return perfectly to the code.
-Buries all Dape buffers so you never have to press 'q' twice."
+Buries all Dape buffers so you never have to press `q' twice."
   (interactive)
   (let ((source-buf nil))
     ;; 1. Loop through ALL buffers
@@ -3542,11 +3542,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; =========================================
 ;; Top Menu Bar (Debug Toggle at the end)
 ;; =========================================
-
-(defun my-dape-toggle-debug-bar ()
-  "Toggle the visibility of the 1-click Debug Bar."
-  (interactive)
-  (tab-bar-mode 'toggle))
 
 ;; 1. Create a dedicated keymap for the Debug menu
 (defvar my-debug-menu-map (make-sparse-keymap "Debug"))
