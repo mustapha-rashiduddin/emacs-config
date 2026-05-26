@@ -3494,15 +3494,15 @@ Format: \\='((mode1 mode2) . custom-start-function)")
     ["menu" my-force-menu t]  ;; <--- Now calls your new trick function
     ["command-mode" my/speed-dial-command-mode t]))
 
+(defun my-dape-toggle-debug-bar ()
+  "Toggle the visibility of the 1-click Debug Bar."
+  (interactive)
+  (tab-bar-mode 'toggle))
+
 (easy-menu-define my-custom-debug-menu global-map
   "My custom menu for Dape debug views."
   '("Debug"
-    ["REPL" my-dape-open-repl t]
-    ["Locals" my-dape-open-locals t]
-    ["Stack" my-dape-open-stack t]
-    ["Breakpoints" my-dape-open-breakpoints t]
-    ["Threads" my-dape-open-threads t]
-    ["Watch" my-dape-open-watch t]))
+    ["On/Off" my-dape-toggle-debug-bar t]))
 
 (defun my-force-menu ()
   "First run menu-mode, then open the speed dial hydra."
@@ -3582,7 +3582,7 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (setq tab-bar-format '(my-dape-tab-bar-buttons))
 
 ;; 4. Enable it (You can now toggle it on and off from the Menu Bar!)
-(tab-bar-mode 1)
+(tab-bar-mode 0)
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
