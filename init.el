@@ -442,7 +442,7 @@
   (message "Config successfully reloaded!"))
 
 (with-eval-after-load 'evil
-  (evil-define-key 'normal 'global (kbd "<leader> h r r") 'my/reload-config))
+  (evil-define-key 'normal 'global (kbd "<SPC> h r r") 'my/reload-config))
 
 (defun my/compile-config ()
   "Compile all config files to Machine Code (if supported)."
@@ -478,7 +478,7 @@
     (message "✨ Config successfully compiled! Restart Emacs to experience the speed.")))
 
 (with-eval-after-load 'evil
-  (evil-define-key 'normal 'global (kbd "<leader> h c c") 'my/compile-config))
+  (evil-define-key 'normal 'global (kbd "SPC h c c") 'my/compile-config))
 
 ;; ==========================================
 ;; 5. Setup Org-Mode Ecosystem
@@ -3564,9 +3564,10 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (define-key global-map [menu-bar my-debug-menu]
   (cons "Debug" my-debug-menu-map))
 
-;; 4. Force Emacs to push this specific menu past 'Help' to the absolute right edge!
-(setq menu-bar-final-items
-      (append menu-bar-final-items '(my-debug-menu)))
+;; 4. Force Emacs to push these menus past 'Help' to the absolute right edge!
+;; (Using add-to-list prevents duplicates if you ever reload your config)
+(add-to-list 'menu-bar-final-items 'jump t)
+(add-to-list 'menu-bar-final-items 'my-debug-menu t)
 
 ;; ---------------------------------------------------------------------------------
 
