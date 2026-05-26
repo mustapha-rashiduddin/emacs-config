@@ -3367,25 +3367,21 @@ Dape's internal API to prevent runtime crashes and compiler warnings."
 
 (defun my-dape-quit-window ()
   "Bulletproof exit: return perfectly to the code.
-Skips over multiple Dape modal hops to land directly on the source."
+Buries all Dape buffers so you never have to press 'q' twice."
   (interactive)
   (let ((source-buf nil))
-    ;; 1. Look through Emacs' history of recently used buffers
-    (catch 'found
-      (dolist (buf (buffer-list))
-        (let ((name (buffer-name buf)))
-          ;; Ignore hidden buffers (start with space) and ALL Dape buffers
-          (unless (or (string-prefix-p " " name)
-                      (string-prefix-p "*dape-" name))
-            (setq source-buf buf)
-            (throw 'found t)))))
+    ;; 1. Loop through ALL buffers
+    (dolist (buf (buffer-list))
+      (let ((name (buffer-name buf)))
+        (if (string-prefix-p "*dape-" name)
+            ;; 🚨 Bury EVERY Dape buffer in the history, not just the current one!
+            (bury-buffer buf)
+          ;; Find the first real file we opened
+          (unless (or source-buf (string-prefix-p " " name))
+            (setq source-buf buf)))))
     
-    ;; 2. Push the current Dape buffer to the bottom of the list
-    (bury-buffer)
-    
-    ;; 3. Instantly switch straight back to the source code buffer
+    ;; 2. Instantly switch straight back to the source code buffer
     (when source-buf
-      ;; 🚨 THE FIX: Strip Dape's sneaky window locks right before quitting!
       (set-window-dedicated-p (selected-window) nil)
       (switch-to-buffer source-buf))))
 
@@ -3430,11 +3426,19 @@ Skips over multiple Dape modal hops to land directly on the source."
       (evil-local-set-key 'motion (kbd "SPC d") 'hydra-dape/body)
       (evil-local-set-key 'motion (kbd "SPC a") 'hydra-speed-dial/body)) ;; <-- Added
 
+    ;; Main Views
     (add-hook 'dape-info-stack-mode-hook 'my-dape-setup-modal-keys)
     (add-hook 'dape-info-scope-mode-hook 'my-dape-setup-modal-keys)
     (add-hook 'dape-info-breakpoints-mode-hook 'my-dape-setup-modal-keys)
     (add-hook 'dape-info-threads-mode-hook 'my-dape-setup-modal-keys)
     (add-hook 'dape-info-watch-mode-hook 'my-dape-setup-modal-keys)
+
+    ;; 🚨 THE FIX: Explicitly hook ALL the Pink Sub-Views! 
+    (add-hook 'dape-info-modules-mode-hook 'my-dape-setup-modal-keys)
+    (add-hook 'dape-info-sources-mode-hook 'my-dape-setup-modal-keys)
+    (add-hook 'dape-info-registers-mode-hook 'my-dape-setup-modal-keys)
+    (add-hook 'dape-info-memory-mode-hook 'my-dape-setup-modal-keys)
+    (add-hook 'dape-info-exceptions-mode-hook 'my-dape-setup-modal-keys)
 
     ;; 🚨 REPL TERMINAL FIX 🚨
     (add-hook 'dape-repl-mode-hook
