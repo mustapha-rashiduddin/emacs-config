@@ -3499,10 +3499,36 @@ Format: \\='((mode1 mode2) . custom-start-function)")
   (interactive)
   (tab-bar-mode 'toggle))
 
-(easy-menu-define my-custom-debug-menu global-map
-  "My custom menu for Dape debug views."
-  '("Debug"
-    ["On/Off" my-dape-toggle-debug-bar t]))
+;; =========================================
+;; Top Menu Bar (Debug Toggle at the end)
+;; =========================================
+
+(defun my-dape-toggle-debug-bar ()
+  "Toggle the visibility of the 1-click Debug Bar."
+  (interactive)
+  (tab-bar-mode 'toggle))
+
+;; 1. Create a dedicated keymap for the Debug menu
+(defvar my-debug-menu-map (make-sparse-keymap "Debug"))
+
+;; 2. Add two mutually exclusive buttons to simulate changing text
+(define-key my-debug-menu-map [turn-off]
+  '(menu-item "Turn Off" my-dape-toggle-debug-bar
+              :visible (bound-and-true-p tab-bar-mode)))
+
+(define-key my-debug-menu-map [turn-on]
+  '(menu-item "Turn On" my-dape-toggle-debug-bar
+              :visible (not (bound-and-true-p tab-bar-mode))))
+
+;; 3. Attach it to the global menu bar under a specific, trackable key
+(define-key global-map [menu-bar my-debug-menu]
+  (cons "Debug" my-debug-menu-map))
+
+;; 4. Force Emacs to push this specific menu past 'Help' to the absolute right edge!
+(setq menu-bar-final-items
+      (append menu-bar-final-items '(my-debug-menu)))
+
+;; ---------------------------------------------------------------------------------
 
 (defun my-force-menu ()
   "First run menu-mode, then open the speed dial hydra."
