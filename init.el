@@ -3494,6 +3494,16 @@ Format: \\='((mode1 mode2) . custom-start-function)")
     ["menu" my-force-menu t]  ;; <--- Now calls your new trick function
     ["command-mode" my/speed-dial-command-mode t]))
 
+(easy-menu-define my-custom-debug-menu global-map
+  "My custom menu for Dape debug views."
+  '("Debug"
+    ["REPL" my-dape-open-repl t]
+    ["Locals" my-dape-open-locals t]
+    ["Stack" my-dape-open-stack t]
+    ["Breakpoints" my-dape-open-breakpoints t]
+    ["Threads" my-dape-open-threads t]
+    ["Watch" my-dape-open-watch t]))
+
 (defun my-force-menu ()
   "First run menu-mode, then open the speed dial hydra."
   (interactive) ;; <--- This makes it usable in menus/keybindings
@@ -3523,6 +3533,44 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; --- 4. No-Nonsense Code Navigation (Docker/Terminal Safe) ---
 (global-set-key (kbd "M-.") 'my/smart-gd)  ;; Alt + . -> Go to Definition
 (global-set-key (kbd "M-?") 'my/smart-gr)  ;; Alt + ? -> Find References
+
+;; =========================================
+;; 1-Click Debugger Buttons (Tool Bar)
+;; =========================================
+(tool-bar-mode 1)
+(setq tool-bar-style 'text) ;; Force it to be sleek text, no icons
+
+;; Clear out Emacs' default icons (Save, Open, Print, etc.)
+(setq-default tool-bar-map (make-sparse-keymap))
+
+;; =========================================
+;; The "No Monkey Business" 1-Click Debug Bar
+;; =========================================
+
+;; 1. We MUST use strictly named functions.
+(defun my-dape-click-cont () (interactive) (require 'dape) (call-interactively 'dape-continue))
+(defun my-dape-click-next () (interactive) (require 'dape) (call-interactively 'dape-next))
+(defun my-dape-click-in ()   (interactive) (require 'dape) (call-interactively 'dape-step-in))
+(defun my-dape-click-out ()  (interactive) (require 'dape) (call-interactively 'dape-step-out))
+(defun my-dape-click-quit () (interactive) (require 'dape) (call-interactively 'dape-quit))
+
+;; 2. Build the Tab Bar menu-item list with Symbols!
+(defun my-dape-tab-bar-buttons ()
+  "Inject custom 1-click debug buttons into the Tab Bar."
+  `((dape-sep   . (menu-item "   |   " ignore))
+    (dape-start . (menu-item "[▶ Start]" my-dape-start-dispatch))
+    (dape-cont  . (menu-item "[⏩ Continue]" my-dape-click-cont))
+    (dape-next  . (menu-item "[⏭ Next]" my-dape-click-next))
+    (dape-in    . (menu-item "[⏬ Step In]" my-dape-click-in))
+    (dape-out   . (menu-item "[⏫ Step Out]" my-dape-click-out))
+    (dape-quit  . (menu-item "[■ Stop]" my-dape-click-quit))))
+
+;; 3. Force the Tab Bar to ALWAYS show
+(setq tab-bar-show t)
+(tab-bar-mode 1)
+
+;; 4. Left-aligned so mouse coordinates match text perfectly!
+(setq tab-bar-format '(tab-bar-format-tabs my-dape-tab-bar-buttons))
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
