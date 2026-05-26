@@ -3552,7 +3552,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
   "Start debugging, or continue if a session is already active."
   (interactive)
   (require 'dape)
-  ;; Ask Dape's internal API if there are any live debugger connections
   (if (and (fboundp 'dape--live-connections) (dape--live-connections))
       (call-interactively 'dape-continue)
     (my-dape-start-dispatch)))
@@ -3562,21 +3561,28 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (defun my-dape-click-out ()  (interactive) (require 'dape) (call-interactively 'dape-step-out))
 (defun my-dape-click-quit () (interactive) (require 'dape) (call-interactively 'dape-quit))
 
-;; 2. Build the Tab Bar menu-item list (Merged Start/Continue)
+;; 2. Build the Tab Bar menu-item list (Controls + Separator + Views)
 (defun my-dape-tab-bar-buttons ()
   "Inject custom 1-click debug buttons into the Tab Bar."
   `((dape-start-cont . (menu-item " [▶  Start/Continue] " my-dape-click-start-or-continue))
     (dape-next       . (menu-item "[↷  Step Over] " my-dape-click-next))
     (dape-in         . (menu-item "[↴ Step In] " my-dape-click-in))
     (dape-out        . (menu-item "[⮤ Step Out] " my-dape-click-out))
-    (dape-quit       . (menu-item "[■ Stop] " my-dape-click-quit))))
+    (dape-quit       . (menu-item "[■ Stop]" my-dape-click-quit))
+    (dape-sep        . (menu-item " | " ignore))
+    (dape-repl       . (menu-item "[REPL] " my-dape-open-repl))
+    (dape-locals     . (menu-item "[Locals] " my-dape-open-locals))
+    (dape-stack      . (menu-item "[Stack] " my-dape-open-stack))
+    (dape-breakpoints. (menu-item "[Breakpoints] " my-dape-open-breakpoints))
+    (dape-threads    . (menu-item "[Threads] " my-dape-open-threads))
+    (dape-watch      . (menu-item "[Watch] " my-dape-open-watch))))
 
-;; 3. Force the Tab Bar to ALWAYS show
+;; 3. Set the layout rules
 (setq tab-bar-show t)
-(tab-bar-mode 1)
-
-;; 4. THE FIX: Remove `tab-bar-format-tabs`! This deletes the *scratch* tabs entirely.
 (setq tab-bar-format '(my-dape-tab-bar-buttons))
+
+;; 4. Enable it (You can now toggle it on and off from the Menu Bar!)
+(tab-bar-mode 1)
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
