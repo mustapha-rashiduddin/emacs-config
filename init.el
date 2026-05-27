@@ -3626,7 +3626,7 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; 2. Build the Tab Bar menu-item list (Controls + Separator + Views)
 (defun my-dape-tab-bar-buttons ()
   "Inject custom 1-click debug buttons into the Tab Bar."
-  `((dape-start-cont . (menu-item " [▶ Start/Continue] " my-dape-click-start-or-continue))
+  `((dape-start-cont . (menu-item "[▶ Start/Continue] " my-dape-click-start-or-continue))
     (dape-next       . (menu-item "[↷ Step Over] " my-dape-click-next))
     (dape-in         . (menu-item "[↴ Step In] " my-dape-click-in))
     (dape-out        . (menu-item "[⮤ Step Out] " my-dape-click-out))
@@ -3638,7 +3638,7 @@ Format: \\='((mode1 mode2) . custom-start-function)")
     (dape-breakpoints. (menu-item "[Breakpoints] " my-dape-open-breakpoints))
     (dape-threads    . (menu-item "[Threads] " my-dape-open-threads))
     (dape-watch      . (menu-item "[Watch] " my-dape-open-watch))
-    (dape-arrow      . (menu-item "[Arrow] " my-dape-goto-stopped-line))))
+    (dape-arrow      . (menu-item "[Arrow]" my-dape-goto-stopped-line))))
 
 
 ;; 3. Set the layout rules
