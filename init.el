@@ -3667,8 +3667,9 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (defvar outside-vim-mode t
   "TRUE when outside Vim mode, FALSE when inside.")
 
-(defvar tmux-escape-is-intercepted t
-  "Tracks what Tmux is currently doing. (Starts TRUE because of Dockerfile)")
+;; CHANGE: Starts at nil because Tmux no longer sets this via Dockerfile
+(defvar tmux-escape-is-intercepted nil
+  "Tracks what Tmux is currently doing.")
 
 (defun sync-tmux-escape (&rest _args)
   "Evaluates Vim state and current buffer, and tells Tmux what to do."
@@ -3704,6 +3705,10 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; ------------------------------------------
 ;; THE MAGIC HOOKS
 ;; ------------------------------------------
+
+;; ADD THIS: Apply the correct state the very moment Emacs finishes loading!
+(add-hook 'emacs-startup-hook #'sync-tmux-escape)
+
 ;; Tell Emacs to run our sync function automatically every time 
 ;; you change tabs, buffers, or split windows!
 (add-hook 'window-buffer-change-functions #'sync-tmux-escape)
