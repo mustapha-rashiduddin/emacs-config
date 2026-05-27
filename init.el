@@ -3706,8 +3706,13 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; THE MAGIC HOOKS
 ;; ------------------------------------------
 
-;; ADD THIS: Apply the correct state the very moment Emacs finishes loading!
-(add-hook 'emacs-startup-hook #'sync-tmux-escape)
+;; ADD THIS: Dynamically check Evil's state at startup before syncing
+(add-hook 'emacs-startup-hook 
+          (lambda ()
+            ;; 1. Check if evil-mode is actually on or off
+            (setq outside-vim-mode (not (bound-and-true-p evil-mode)))
+            ;; 2. Now safely sync with Tmux based on the correct state
+            (sync-tmux-escape)))
 
 ;; Tell Emacs to run our sync function automatically every time 
 ;; you change tabs, buffers, or split windows!
