@@ -609,11 +609,11 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
       (org-roam-node-find)))
 
   (evil-define-key 'normal 'global
-    (kbd "<leader> n l") 'org-roam-buffer-toggle
-    (kbd "<leader> n f") 'my/org-roam-node-find-ignore-case
-    (kbd "<leader> n i") 'org-roam-node-insert
-    (kbd "<leader> n S") 'org-roam-db-sync
-    (kbd "<leader> n d") 'my/org-roam-delete-current-node))
+    (kbd "SPC n l") 'org-roam-buffer-toggle
+    (kbd "SPC n f") 'my/org-roam-node-find-ignore-case
+    (kbd "SPC n i") 'org-roam-node-insert
+    (kbd "SPC n S") 'org-roam-db-sync
+    (kbd "SPC n d") 'my/org-roam-delete-current-node))
 
 (use-package org-roam-ui
   :straight (:host github :repo "org-roam/org-roam-ui")
@@ -2375,8 +2375,8 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
   :init
   (with-eval-after-load 'evil
     (evil-define-key 'normal 'global
-      (kbd "<leader> e w") 'my/eshell-workspace
-      (kbd "<leader> e f") 'my/eshell-current-file-dir))
+      (kbd "SPC e w") 'my/eshell-workspace
+      (kbd "SPC e f") 'my/eshell-current-file-dir))
   :config
   (evil-set-initial-state 'eat-mode 'emacs))
 
