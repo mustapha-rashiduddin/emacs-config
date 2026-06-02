@@ -23,7 +23,7 @@
 (unless (fboundp 'sqlite-open)
   (error "Your Emacs was compiled without SQLite support! Emacs 29+ requires SQLite for this speed-dial."))
 
-(defvar my/sd-db-file (expand-file-name "speed-dial.sqlite" user-emacs-directory)
+(defvar my/sd-db-file (expand-file-name "speed-dial.sqlite" "~/emacs-speed-dial/")
   "Path to the SQLite database storing speed dial slots.")
 
 (defvar my/sd-db nil
@@ -32,6 +32,9 @@
 (defun my/sd-init-db ()
   "Initialize the SQLite database and create schemas if they don't exist."
   (unless my/sd-db
+    ;; Create the target directory if it doesn't exist yet
+    (make-directory (file-name-directory my/sd-db-file) t)
+    
     (setq my/sd-db (sqlite-open my/sd-db-file))
     (sqlite-execute my/sd-db "
       CREATE TABLE IF NOT EXISTS speed_dial (
