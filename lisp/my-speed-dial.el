@@ -1191,9 +1191,9 @@ Swallows double/triple clicks to prevent Emacs native crashes."
 ;(evil-define-key 'normal 'global (kbd "<leader> a") 'hydra-speed-dial/body)
 (with-eval-after-load 'evil
   (evil-global-set-key 'normal (kbd "SPC a") 'hydra-speed-dial/body))
-(evil-define-key 'normal 'global (kbd "<leader> b p") 'my/project-bookmark-jump)
-(evil-define-key 'normal 'global (kbd "<leader> b m") 'my/bookmark-set-absolute)
-(evil-define-key 'normal 'global (kbd "<leader> b t") 'my/bookmark-tag-current-file)
+(evil-define-key 'normal 'global (kbd "SPC b p") 'my/project-bookmark-jump)
+(evil-define-key 'normal 'global (kbd "SPC b m") 'my/bookmark-set-absolute)
+(evil-define-key 'normal 'global (kbd "SPC b t") 'my/bookmark-tag-current-file)
 
 (evil-ex-define-cmd "command" 'my/speed-dial-command-mode)
 (evil-ex-define-cmd "menu" 'my/speed-dial-menu-mode)
@@ -1214,6 +1214,6 @@ Swallows double/triple clicks to prevent Emacs native crashes."
         (goto-char orig-point)
         (message "Marker '%s' not found in this file" search-str)))))
 
-(evil-define-key 'normal 'global (kbd "<leader> s") 'my/jump-to-inline-mark)
+(evil-define-key 'normal 'global (kbd "SPC s") 'my/jump-to-inline-mark)
 
 (provide 'my-speed-dial)

@@ -116,7 +116,7 @@
   ;(evil-mode 1)
   (evil-set-leader 'normal (kbd "SPC"))
   ;; Moved this global keybinding inside the Evil config
-  (evil-define-key 'normal 'global (kbd "<leader> f f") 'find-file))
+  (evil-define-key 'normal 'global (kbd "SPC f f") 'find-file))
 
 (use-package evil-collection
   :straight (:host github :repo "emacs-evil/evil-collection")
@@ -624,7 +624,7 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
   (org-roam-ui-open-on-start t)
   :config
   (evil-define-key 'normal 'global
-    (kbd "<leader> n g") 'org-roam-ui-mode))
+    (kbd "SPC n g") 'org-roam-ui-mode))
 
 ;; Minibuffer SPC fix
 (define-key minibuffer-local-completion-map (kbd "SPC") 'self-insert-command)
@@ -633,10 +633,10 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
   :straight (:host github :repo "nobiot/org-transclusion")
   :config
   (evil-define-key '(normal motion) 'org-mode-map
-    (kbd "<leader> n t") 'org-transclusion-mode
-    (kbd "<leader> n a") 'org-transclusion-add
-    (kbd "<leader> n m") 'org-transclusion-make-from-link
-    (kbd "<leader> n r") 'org-transclusion-remove
+    (kbd "SPC n t") 'org-transclusion-mode
+    (kbd "SPC n a") 'org-transclusion-add
+    (kbd "SPC n m") 'org-transclusion-make-from-link
+    (kbd "SPC n r") 'org-transclusion-remove
     ;;(kbd "g d") 'my/org-transclusion-open-source-at-point
     ;;(kbd "g r") 'my/org-transclusion-backlinks
     (kbd "g s") 'my/org-toggle-link-under-cursor    ;; <-- NEW PROPER BINDING
@@ -2246,7 +2246,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
       "* %?\n%U\n%i" :empty-lines 1)))
   :config
   (evil-define-key 'normal 'global
-    (kbd "<leader> n c") 'org-capture))
+    (kbd "SPC n c") 'org-capture))
 
 (use-package org-appear
   :straight (:host github :repo "awth13/org-appear")
@@ -2264,7 +2264,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
   (org-id-link-to-org-use-id 'create-if-interactive-and-no-custom-alist)
   :config
   (evil-define-key 'normal 'global
-    (kbd "<leader> n u") 'org-id-get-create)) ; 'u' for Unique ID
+    (kbd "SPC n u") 'org-id-get-create)) ; 'u' for Unique ID
 
   ;; ==========================================
   ;; LAZY ORG-ID UPDATER
@@ -2452,9 +2452,9 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 (add-hook 'kill-emacs-hook #'bookmark-save)
 
 (with-eval-after-load 'evil
-  (evil-define-key 'normal 'global (kbd "<leader> b l") 'bookmark-bmenu-list)
-  (evil-define-key 'normal 'global (kbd "<leader> b s") 'bookmark-set)
-  (evil-define-key 'normal 'global (kbd "<leader> b j") 'bookmark-jump))
+  (evil-define-key 'normal 'global (kbd "SPC b l") 'bookmark-bmenu-list)
+  (evil-define-key 'normal 'global (kbd "SPC b s") 'bookmark-set)
+  (evil-define-key 'normal 'global (kbd "SPC b j") 'bookmark-jump))
 
 (with-eval-after-load 'evil
   (evil-set-initial-state 'bookmark-bmenu-mode 'emacs))
@@ -2513,7 +2513,7 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 
   ;; 5. Toggle keybind
   (evil-define-key 'normal 'global
-    (kbd "<leader> t t") 'ef-themes-toggle))
+    (kbd "SPC t t") 'ef-themes-toggle))
 
 ;; ==========================================
 ;; 9. Elfeed & Elfeed-Org
@@ -2755,9 +2755,9 @@ Displays the calculated breadcrumb path in the echo area."
 
   (with-eval-after-load 'evil
     (evil-define-key 'normal eglot-mode-map
-      (kbd "<leader> c r") 'eglot-rename
-      (kbd "<leader> c a") 'eglot-code-actions
-      (kbd "<leader> c f") 'eglot-format-buffer
+      (kbd "SPC c r") 'eglot-rename
+      (kbd "SPC c a") 'eglot-code-actions
+      (kbd "SPC c f") 'eglot-format-buffer
       (kbd "g D") 'xref-find-references
       ;; ADD THESE so you can jump between errors quickly!
       (kbd "[ d") 'flymake-goto-prev-error
@@ -3177,7 +3177,7 @@ Displays the calculated breadcrumb path in the echo area."
   :config
   ;; Bind it to Leader + c + o (Code Outline)
   (with-eval-after-load 'evil
-    (evil-define-key 'normal 'global (kbd "<leader> c o") 'imenu-list-smart-toggle)
+    (evil-define-key 'normal 'global (kbd "SPC c o") 'imenu-list-smart-toggle)
     
     ;; Make Vim keys work smoothly inside the outline pane
     (evil-define-key 'normal imenu-list-major-mode-map
