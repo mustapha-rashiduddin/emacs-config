@@ -480,6 +480,8 @@
 (with-eval-after-load 'evil
   (evil-define-key 'normal 'global (kbd "SPC h c c") 'my/compile-config))
 
+;; ORG MODE BEGIN
+
 ;; ==========================================
 ;; 5. Setup Org-Mode Ecosystem
 ;; ==========================================
@@ -1280,6 +1282,33 @@ If already inside the code body of a block, do nothing."
 
 (evil-define-key 'normal 'global (kbd "g m") 'my/org-jump-drill-down)
 
+(with-eval-after-load 'org
+  
+  ;; 1. Kill the default Emacs menu on "press down" ONLY in Org mode
+  (define-key org-mode-map (kbd "<C-down-mouse-1>") 'ignore)
+  (define-key org-mouse-map (kbd "<C-down-mouse-1>") 'ignore)
+  (evil-define-key 'normal org-mode-map (kbd "<C-down-mouse-1>") 'ignore)
+
+  ;; 2. Map the actual click (letting go) to your function ONLY in Evil normal state Org mode
+  (evil-define-key 'normal org-mode-map (kbd "<C-mouse-1>") 
+    (lambda (event) 
+      (interactive "e") 
+      (mouse-set-point event) 
+      (my/org-jump-drill-down)))
+
+  ;; 3. Overwrite Org's hidden text-property maps (for links/transclusions)
+  (define-key org-mouse-map (kbd "<C-mouse-1>") 
+    (lambda (event) 
+      (interactive "e") 
+      (mouse-set-point event) 
+      (my/org-jump-drill-down))))
+
+;; Bind to Ctrl + Left Click globally
+(global-set-key (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
+
+;; OR, if you strictly want it to only work in Evil normal state:
+;; (evil-define-key 'normal 'global (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
+
 (defun my/org-jump-surface-up ()
   "Surface upward: Tangled Code -> Org Source Block -> Transclusion Clone.
    Maintains exact row/col persistence with absolutely no window splitting.
@@ -1538,6 +1567,23 @@ If already inside the code body of a block, do nothing."
                 (message "Multiple active transclusions found (%d). Press RET to teleport." (length all-matches)))))))))))
 
 (evil-define-key 'normal 'global (kbd "g c") 'my/org-jump-surface-up)
+;; 1. Kill the default Emacs menu that pops up when you press Ctrl + Right Click down globally
+(global-set-key (kbd "<C-down-mouse-3>") 'ignore)
+
+;; 2. Map the actual click (letting go) to surface-up globally in Evil normal state
+(evil-define-key 'normal 'global (kbd "<C-mouse-3>") 
+  (lambda (event) 
+    (interactive "e") 
+    (mouse-set-point event) 
+    (my/org-jump-surface-up)))
+
+;; 3. Overwrite Org's hidden text-property maps so you can surface-up even if clicking directly on a link
+(with-eval-after-load 'org
+  (define-key org-mouse-map (kbd "<C-mouse-3>") 
+    (lambda (event) 
+      (interactive "e") 
+      (mouse-set-point event) 
+      (my/org-jump-surface-up))))
 
 ;; =====================================================================
 ;; 1. THE SMART DISPATCHER (Bound to :testjmp)
@@ -2337,6 +2383,8 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
 ;;(evil-define-key 'normal 'global
   ;;(kbd "<leader> n y") #'my/org-store-link-smart   ; 'y' for Yank link
   ;;(kbd "<leader> n p") #'my/org-insert-link-clean)
+
+;; ORG MODE END
 
 ;; ==========================================
 ;; 6. Setup Eshell & Eat 
