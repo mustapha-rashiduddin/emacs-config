@@ -132,9 +132,6 @@
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (require 'my-speed-dial)
 
-(add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(require 'tmux-mouse-patch)
-
 ;; ==========================================
 ;; 4. General UI & System Settings
 ;; ==========================================
