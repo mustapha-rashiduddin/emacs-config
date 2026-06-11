@@ -3636,7 +3636,16 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (global-set-key (kbd "C-z") 'undo)
 (global-set-key (kbd "C-f") 'isearch-forward)
 (global-set-key (kbd "C-a") 'mark-whole-buffer)
-(global-set-key (kbd "C-@") 'completion-at-point)  ;; <--- IntelliSense
+;; 1. The standard GUI binding
+(global-set-key (kbd "C-SPC") 'completion-at-point)
+
+;; 2. The standard Terminal binding
+(global-set-key (kbd "C-@") 'completion-at-point)
+
+;; 3. STOP Evil from hijacking the Terminal binding!
+(with-eval-after-load 'evil
+  (define-key evil-insert-state-map (kbd "C-@") 'completion-at-point)
+  (define-key evil-normal-state-map (kbd "C-@") 'completion-at-point))
 
 ;; --- 3. Custom Speed-Dial Functions ---
 (global-set-key (kbd "C-n") 'my/speed-dial-menu-mode)
