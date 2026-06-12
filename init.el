@@ -2797,6 +2797,7 @@ Displays the calculated breadcrumb path in the echo area."
   (add-to-list 'eglot-server-programs
                '((c++-mode c-mode)
                  . ("clangd"
+		    "--limit-results=0"
                     "--experimental-modules-support"
                     "--fallback-style=BasedOnStyle: LLVM, IndentWidth: 8, TabWidth: 8, UseTab: Always, BreakBeforeBraces: Linux, IndentCaseLabels: false, BinPackArguments: false, BinPackParameters: false")))
 
@@ -3636,15 +3637,16 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (global-set-key (kbd "C-z") 'undo)
 (global-set-key (kbd "C-f") 'isearch-forward)
 (global-set-key (kbd "C-a") 'mark-whole-buffer)
-;; 1. The standard GUI binding
-(global-set-key (kbd "C-SPC") 'completion-at-point)
 
-;; 2. The standard Terminal binding
+;; 1. Global Maps
+(global-set-key (kbd "C-SPC") 'completion-at-point)
 (global-set-key (kbd "C-@") 'completion-at-point)
 
-;; 3. STOP Evil from hijacking the Terminal binding!
+;; 2. Force Evil to obey
 (with-eval-after-load 'evil
+  (define-key evil-insert-state-map (kbd "C-SPC") 'completion-at-point)
   (define-key evil-insert-state-map (kbd "C-@") 'completion-at-point)
+  (define-key evil-normal-state-map (kbd "C-SPC") 'completion-at-point)
   (define-key evil-normal-state-map (kbd "C-@") 'completion-at-point))
 
 ;; --- 3. Custom Speed-Dial Functions ---
