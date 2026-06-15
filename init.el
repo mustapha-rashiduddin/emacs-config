@@ -1306,6 +1306,13 @@ If already inside the code body of a block, do nothing."
       (mouse-set-point event) 
       (my/org-jump-drill-down))))
 
+;; Define the missing mouse-wrapper function
+(defun my/org-jump-drill-down-mouse (event)
+  "Mouse wrapper for my/org-jump-drill-down."
+  (interactive "e")
+  (mouse-set-point event)
+  (my/org-jump-drill-down))
+
 ;; Bind to Ctrl + Left Click globally
 (global-set-key (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
 
@@ -1570,23 +1577,26 @@ If already inside the code body of a block, do nothing."
                 (message "Multiple active transclusions found (%d). Press RET to teleport." (length all-matches)))))))))))
 
 (evil-define-key 'normal 'global (kbd "g c") 'my/org-jump-surface-up)
+
+;; Define the missing mouse-wrapper function for bubbling up
+(defun my/org-jump-surface-up-mouse (event)
+  "Mouse wrapper for my/org-jump-surface-up."
+  (interactive "e")
+  (mouse-set-point event)
+  (my/org-jump-surface-up))
+
 ;; 1. Kill the default Emacs menu that pops up when you press Ctrl + Right Click down globally
 (global-set-key (kbd "<C-down-mouse-3>") 'ignore)
 
-;; 2. Map the actual click (letting go) to surface-up globally in Evil normal state
-(evil-define-key 'normal 'global (kbd "<C-mouse-3>") 
-  (lambda (event) 
-    (interactive "e") 
-    (mouse-set-point event) 
-    (my/org-jump-surface-up)))
+;; 2. Map the actual click globally so it works when Vim mode is OFF
+(global-set-key (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse)
 
-;; 3. Overwrite Org's hidden text-property maps so you can surface-up even if clicking directly on a link
+;; 3. Keep the Evil binding so it works when Vim mode is ON
+(evil-define-key 'normal 'global (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse)
+
+;; 4. Overwrite Org's hidden text-property maps so it works when clicking directly on a link
 (with-eval-after-load 'org
-  (define-key org-mouse-map (kbd "<C-mouse-3>") 
-    (lambda (event) 
-      (interactive "e") 
-      (mouse-set-point event) 
-      (my/org-jump-surface-up))))
+  (define-key org-mouse-map (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
 
 ;; =====================================================================
 ;; 1. THE SMART DISPATCHER (Bound to :testjmp)
