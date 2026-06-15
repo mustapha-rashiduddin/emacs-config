@@ -1285,36 +1285,59 @@ If already inside the code body of a block, do nothing."
 
 (evil-define-key 'normal 'global (kbd "g m") 'my/org-jump-drill-down)
 
-(with-eval-after-load 'org
-  
-  ;; 1. Kill the default Emacs menu on "press down" ONLY in Org mode
-  (define-key org-mode-map (kbd "<C-down-mouse-1>") 'ignore)
-  (define-key org-mouse-map (kbd "<C-down-mouse-1>") 'ignore)
-  (evil-define-key 'normal org-mode-map (kbd "<C-down-mouse-1>") 'ignore)
+;; =================================================================
+;; SMART CTRL + CLICK (Bulletproof against CUA and Minor Modes)
+;; =================================================================
 
-  ;; 2. Map the actual click (letting go) to your function ONLY in Evil normal state Org mode
-  (evil-define-key 'normal org-mode-map (kbd "<C-mouse-1>") 
-    (lambda (event) 
-      (interactive "e") 
-      (mouse-set-point event) 
-      (my/org-jump-drill-down)))
-
-  ;; 3. Overwrite Org's hidden text-property maps (for links/transclusions)
-  (define-key org-mouse-map (kbd "<C-mouse-1>") 
-    (lambda (event) 
-      (interactive "e") 
-      (mouse-set-point event) 
-      (my/org-jump-drill-down))))
-
-;; Define the missing mouse-wrapper function
-(defun my/org-jump-drill-down-mouse (event)
-  "Mouse wrapper for my/org-jump-drill-down."
+(defun my/smart-mouse-jump-drill-down (event)
+  "Traffic cop for Ctrl + Left Click.
+If in Org-mode: uses your Org drill-down logic.
+If in Code: bypasses interactive prompts to jump natively."
   (interactive "e")
   (mouse-set-point event)
-  (my/org-jump-drill-down))
+  ;; THE FIX: Force Emacs to activate the clicked window context in the terminal
+  (with-selected-window (posn-window (event-start event))
+    (if (derived-mode-p 'org-mode)
+        (my/org-jump-drill-down)
+      ;; In code buffers, programmatically grab the word under the mouse 
+      ;; and force LSP to jump, bypassing any terminal prompt confusion.
+      (let ((ident (ignore-errors (xref-backend-identifier-at-point (xref-find-backend)))))
+        (if ident
+            (xref-find-definitions ident)
+          (call-interactively 'xref-find-definitions)))))) ;; Fallback just in case
 
-;; Bind to Ctrl + Left Click globally
-(global-set-key (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
+(defun my/org-jump-surface-up-mouse (event)
+  "Mouse wrapper for my/org-jump-surface-up."
+  (interactive "e")
+  (mouse-set-point event)
+  (with-selected-window (posn-window (event-start event))
+    (my/org-jump-surface-up)))
+
+;; 1. Global Fallbacks
+(global-set-key (kbd "<C-down-mouse-1>") 'ignore)
+(global-set-key (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
+(global-set-key (kbd "<C-down-mouse-3>") 'ignore)
+(global-set-key (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse)
+
+;; 2. THE FIX: Bind directly into CUA mode instead of setting to nil. 
+;; This prevents CUA from falling back to the default Emacs mouse menu when Vim is OFF.
+(with-eval-after-load 'cua-base
+  (define-key cua-global-keymap (kbd "<C-down-mouse-1>") 'ignore)
+  (define-key cua-global-keymap (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
+  (define-key cua-global-keymap (kbd "<C-down-mouse-3>") 'ignore)
+  (define-key cua-global-keymap (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
+
+;; 3. Evil Mode Overrides (Priority #2)
+(with-eval-after-load 'evil
+  (evil-define-key '(normal motion) 'global (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
+  (evil-define-key '(normal motion) 'global (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
+
+;; 4. Org Mode Overrides (Priority #1 - Text Properties)
+(with-eval-after-load 'org
+  (define-key org-mouse-map (kbd "<C-down-mouse-1>") 'ignore)
+  (define-key org-mouse-map (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
+  (define-key org-mouse-map (kbd "<C-down-mouse-3>") 'ignore)
+  (define-key org-mouse-map (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
 
 ;; OR, if you strictly want it to only work in Evil normal state:
 ;; (evil-define-key 'normal 'global (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
@@ -3480,13 +3503,20 @@ Buries all Dape buffers so you never have to press `q' twice."
     ;; (Using functions inside a hook also prevents all byte-compiler warnings)
     (defun my-dape-setup-modal-keys ()
       "Force `q' and `SPC d' strictly into the local buffer map."
+      ;; 1. Evil bindings (When Vim mode is ON)
       (evil-local-set-key 'normal (kbd "q") 'my-dape-quit-window)
       (evil-local-set-key 'normal (kbd "SPC d") 'hydra-dape/body)
-      (evil-local-set-key 'normal (kbd "SPC a") 'hydra-speed-dial/body) ;; <-- Added
+      (evil-local-set-key 'normal (kbd "SPC a") 'hydra-speed-dial/body)
 
       (evil-local-set-key 'motion (kbd "q") 'my-dape-quit-window)
       (evil-local-set-key 'motion (kbd "SPC d") 'hydra-dape/body)
-      (evil-local-set-key 'motion (kbd "SPC a") 'hydra-speed-dial/body)) ;; <-- Added
+      (evil-local-set-key 'motion (kbd "SPC a") 'hydra-speed-dial/body)
+      
+      ;; 2. Emacs bindings (When Vim mode is OFF)
+      ;; It is safe to bind 'q' and 'SPC' here because these popups are read-only!
+      (local-set-key (kbd "q") 'my-dape-quit-window)
+      (local-set-key (kbd "SPC d") 'hydra-dape/body)
+      (local-set-key (kbd "SPC a") 'hydra-speed-dial/body))
 
     ;; Main Views
     (add-hook 'dape-info-stack-mode-hook 'my-dape-setup-modal-keys)
