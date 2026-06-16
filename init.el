@@ -2898,6 +2898,61 @@ Displays the calculated breadcrumb path in the echo area."
 ;; Add this function to the hook for Python mode
 (add-hook 'python-mode-hook #'my/python-hook)
 
+;; =================================================================
+;; RIGHT-CLICK CONTEXT MENU (VS Code Style via Hydra)
+;; =================================================================
+
+(require 'hydra)
+
+(defhydra hydra-lsp-context (:color blue :hint nil)
+  "
+^NAVIGATION^               ^REFACTOR / INFO^
+^^^^^^^^-------------------------------------------------
+_d_: Go to Definition      _r_: Rename Symbol
+_D_: Go to Declaration     _a_: Code Actions (Quick Fix)
+_t_: Go to Type Def        _f_: Format Buffer/Region
+_R_: Find All References   _h_: Show Call Hierarchy
+"
+  ;; Navigation
+  ("d" xref-find-definitions)
+  ("D" eglot-find-declaration)
+  ("t" eglot-find-typeDefinition)
+  ("R" xref-find-references)
+  
+  ;; Refactor / Info
+  ("r" eglot-rename)
+  ("a" eglot-code-actions)
+  ("f" eglot-format)
+  ("h" eglot-show-call-hierarchy)
+  
+  ;; Cancel
+  ("<escape>" nil "cancel" :color blue)
+  ("q" nil "cancel" :color blue))
+
+(defun my/right-click-context-menu (event)
+  "Move cursor to the clicked word and open the LSP context menu."
+  (interactive "e")
+  (mouse-set-point event)
+  (with-selected-window (posn-window (event-start event))
+    ;; Only open the advanced menu if we are in a code file
+    (if (bound-and-true-p eglot--managed-mode)
+        (hydra-lsp-context/body)
+      (message "LSP is not active in this buffer."))))
+
+;; 1. Global Fallbacks for standard Right-Click (No modifiers)
+(global-set-key (kbd "<down-mouse-3>") 'ignore)
+(global-set-key (kbd "<mouse-3>") 'my/right-click-context-menu)
+
+;; 2. CUA Mode Overrides (So CUA doesn't hijack right-click when Vim is OFF)
+(with-eval-after-load 'cua-base
+  (define-key cua-global-keymap (kbd "<down-mouse-3>") 'ignore)
+  (define-key cua-global-keymap (kbd "<mouse-3>") 'my/right-click-context-menu))
+
+;; 3. Evil Mode Overrides (So it works seamlessly when Vim is ON)
+(with-eval-after-load 'evil
+  (evil-define-key '(normal motion insert visual) 'global 
+    (kbd "<mouse-3>") 'my/right-click-context-menu))
+
 ;; ==========================================
 ;; 12. Vim-like Scrolling and End-of-Buffer
 ;; ==========================================
