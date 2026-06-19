@@ -1327,6 +1327,17 @@ If already inside the code body of a block, do nothing."
       (message "Org link history array is empty!"))))
 
 ;; =================================================================
+;; SMART C-o (Back Button Override for Org Mode)
+;; =================================================================
+(with-eval-after-load 'org
+  ;; 1. Override C-o when Vim mode is OFF
+  (define-key org-mode-map (kbd "C-o") 'my/org-pop-link-history)
+  
+  ;; 2. Override C-o when Vim mode is ON
+  (with-eval-after-load 'evil
+    (evil-define-key '(normal motion) org-mode-map (kbd "C-o") 'my/org-pop-link-history)))
+
+;; =================================================================
 ;; SMART CTRL + CLICK (The Ultimate Hybrid Dispatcher)
 ;; =================================================================
 
