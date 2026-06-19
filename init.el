@@ -392,50 +392,6 @@
 ;;  (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
 ;; ==========================================
-;; Remove bar (Terminal Only)
-;; ==========================================
-(unless (display-graphic-p)
-  (setq-default mode-line-format nil))
-
-;; ==========================================
-;; Calculate Location (Terminal Only)
-;; ==========================================
-(defvar my-last-ruler-message nil
-  "Store the last position message to prevent overwriting active messages.")
-
-(defun my-show-position-echo ()
-  "Show position in the bottom right, yielding to other messages for performance."
-  (unless (active-minibuffer-window)
-    (let ((msg (current-message)))
-      
-      ;; FAST PATH: Only do the heavy math if the echo area is empty 
-      ;; OR if it's currently displaying our own ruler.
-      (when (or (not msg) 
-                (equal msg my-last-ruler-message))
-        
-        (let* ((raw-line (line-number-at-pos))
-               (raw-total (line-number-at-pos (point-max)))
-               (total-lines (if (and (> raw-total 1) 
-                                     (eq ?\n (char-before (point-max))))
-                                (- raw-total 1)
-                              raw-total))
-               (line (min raw-line total-lines))
-               (pct (if (> total-lines 0) (floor (* 100.0 line) total-lines) 0))
-               
-               (info-str (format "Line %d of %d --%d%%--" line total-lines pct))
-               (width (window-width (minibuffer-window)))
-               (padding (- width (string-width info-str) 1)))
-          
-          (when (>= padding 0)
-            (let ((message-log-max nil)) 
-              (setq my-last-ruler-message (concat (make-string padding ?\s) info-str))
-              (message "%s" my-last-ruler-message))))))))
-
-;; ONLY attach it to the post-command hook if we are in the terminal (-nw)
-(unless (display-graphic-p)
-  (add-hook 'post-command-hook #'my-show-position-echo))
-
-;; ==========================================
 ;; Reload / Compile Config Functions
 ;; ==========================================
 (defun my/reload-config ()
