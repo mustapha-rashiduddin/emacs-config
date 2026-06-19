@@ -1138,7 +1138,7 @@ If already inside the code body of a block, do nothing."
 
 (defun my/org-jump-drill-down ()
   "Drill downward: Transclusion Clone -> Org Source Block -> Tangled Code.
-   If on pure prose / ID link, deploys a homing beacon and jumps to source.
+   If on pure prose / ID link, acts purely as `g d` and drops a history marker.
    Maintains exact row/col persistence with absolutely no window splitting."
   (interactive)
   (cond
@@ -1207,44 +1207,18 @@ If already inside the code body of a block, do nothing."
    ((derived-mode-p 'org-mode)
     (if (not (org-in-src-block-p))
         
-        ;; -> PROSE DETECTED: Execute open-source / beacon logic
-        (let* ((context (org-element-context))
-               (type (car context)))
-          (cond
-           ;; EXACTLY on an ID link -> Deploy Beacon + Jump!
-           ((and (eq type 'link) (string= (org-element-property :type context) "id"))
-            (let ((id (org-element-property :path context))
-                  (beacon-active nil))
-              (evil-set-jump)
-              
-              ;; ---> BEACON CHECK LOGIC <---
-              ;; Scan overlays at current cursor to see if beacon is already active
-              (dolist (ov (overlays-at (point)))
-                (when (eq (overlay-get ov 'my-preview-state) 'beacon-hidden)
-                  (setq beacon-active t)))
-              
-              ;; Only toggle if the beacon is NOT active
-              (unless beacon-active
-                (my/org-toggle-beacon))
-              
-              (org-id-goto id)
-              (message "Beacon active! Opened source: %s" id)))
-              
-           ;; On a `#+transclude:` line -> Just Jump!
-           ((save-excursion
-              (beginning-of-line)
-              (re-search-forward "#\\+transclude:" (line-end-position) t))
-            (save-excursion
-              (beginning-of-line)
-              (if (re-search-forward "id:\\([0-9a-fA-F-]+\\)" (line-end-position) t)
-                  (let ((id (match-string 1)))
-                    (evil-set-jump)
-                    (org-id-goto id)
-                    (message "Opened transclude source: %s" id))
-                (user-error "No ID link found on this transclude line."))))
-                
-           (t
-            (user-error "Not in a source block, and no ID link exactly under cursor!"))))
+        ;; -> PROSE DETECTED: Wiped the beacon crap! 
+        ;; Now it acts purely as `g d` + saves a history marker.
+        (progn
+          ;; 1. Drop the GPS marker
+          (let ((m (point-marker)))
+            (unless (and my/org-link-history-array
+                         (eq (marker-buffer (car my/org-link-history-array)) (current-buffer))
+                         (= (marker-position (car my/org-link-history-array)) (point)))
+              (push m my/org-link-history-array)))
+          
+          ;; 2. Execute standard `g d` behavior
+          (call-interactively 'my/org-transclusion-open-source-at-point))
 
       ;; -> SOURCE BLOCK DETECTED: Run exact math bubbling to Tangled File
       (let* ((info (org-babel-get-src-block-info 'light))
