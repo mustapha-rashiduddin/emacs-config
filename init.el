@@ -1293,7 +1293,7 @@ If already inside the code body of a block, do nothing."
   "An array (stack) storing the GPS markers of Org links you clicked.")
 
 (defun my/org-open-source-with-history ()
-  "Wrapper for 'g d' that pushes the link's location to the array before jumping."
+  "Wrapper for `g d' that pushes the link's location to the array before jumping."
   (interactive)
   ;; 1. Drop a GPS marker right where the cursor currently is
   (let ((m (point-marker)))
@@ -2939,6 +2939,14 @@ Displays the calculated breadcrumb path in the echo area."
 ;; =================================================================
 
 (require 'hydra)
+
+;; Tell the byte-compiler these functions will exist when eglot loads
+(declare-function eglot-find-declaration "eglot")
+(declare-function eglot-find-typeDefinition "eglot")
+(declare-function eglot-rename "eglot")
+(declare-function eglot-code-actions "eglot")
+(declare-function eglot-format "eglot")
+(declare-function eglot-show-call-hierarchy "eglot")
 
 (defhydra hydra-lsp-context (:color blue :hint nil)
   "
