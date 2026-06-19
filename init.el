@@ -3875,20 +3875,26 @@ Format: \\='((mode1 mode2) . custom-start-function)")
       (setq tmux-escape-is-intercepted should-intercept))))
 
 (defun vim ()
-  "Toggles Evil mode, updates the boolean, and syncs Tmux."
+  "Toggles Evil mode, updates the boolean, syncs Tmux, and toggles CUA mode."
   (interactive)
   
-  ;; Toggle Evil mode
+  ;; Toggle Evil and CUA mode together
   (if evil-mode
-      (evil-mode -1)
-    (evil-mode 1))
+      (progn
+        (evil-mode -1)     ;; Turn Vim OFF
+        (cua-mode 1))      ;; Turn CUA ON (Ctrl-V = Paste)
+    (progn
+      (evil-mode 1)        ;; Turn Vim ON
+      (cua-mode -1)))      ;; Turn CUA OFF (Ctrl-V = Visual Block)
   
   ;; Save the state 
   (setq outside-vim-mode (not evil-mode))
   
   ;; Force a sync with Tmux and print message
   (sync-tmux-escape)
-  (message "VIM %s" (if outside-vim-mode "OFF" "ON")))
+  (message "VIM %s (CUA %s)" 
+           (if outside-vim-mode "OFF" "ON")
+           (if outside-vim-mode "ON" "OFF")))
 
 ;; ------------------------------------------
 ;; THE MAGIC HOOKS
