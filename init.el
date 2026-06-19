@@ -1286,13 +1286,54 @@ If already inside the code body of a block, do nothing."
 (evil-define-key 'normal 'global (kbd "g m") 'my/org-jump-drill-down)
 
 ;; =================================================================
+;; ORG LINK HISTORY ARRAY (Browser Back Button)
+;; =================================================================
+
+(defvar my/org-link-history-array nil
+  "An array (stack) storing the GPS markers of Org links you clicked.")
+
+(defun my/org-open-source-with-history ()
+  "Wrapper for 'g d' that pushes the link's location to the array before jumping."
+  (interactive)
+  ;; 1. Drop a GPS marker right where the cursor currently is
+  (let ((m (point-marker)))
+    ;; Don't push duplicates if you click the exact same spot twice
+    (unless (and my/org-link-history-array
+                 (eq (marker-buffer (car my/org-link-history-array)) (current-buffer))
+                 (= (marker-position (car my/org-link-history-array)) (point)))
+      (push m my/org-link-history-array)))
+      
+  ;; 2. Execute your original jumping function
+  (call-interactively 'my/org-transclusion-open-source-at-point))
+
+(defun my/org-pop-link-history ()
+  "Pop the last clicked link from the array and teleport back to it."
+  (interactive)
+  (let ((m nil)
+        (found nil))
+    ;; Pop until we find a marker whose file hasn't been completely closed/killed
+    (while (and my/org-link-history-array (not found))
+      (setq m (pop my/org-link-history-array))
+      (when (and (markerp m) (marker-buffer m) (buffer-live-p (marker-buffer m)))
+        (setq found t)))
+    
+    (if found
+        (progn
+          (switch-to-buffer (marker-buffer m))
+          (goto-char m)
+          (recenter)
+          (set-marker m nil) ;; Clean up memory
+          (message "Popped back to previous Org link."))
+      (message "Org link history array is empty!"))))
+
+;; =================================================================
 ;; SMART CTRL + CLICK (The Ultimate Hybrid Dispatcher)
 ;; =================================================================
 
 (defun my/smart-mouse-left-click (event)
-  "Hybrid Left Click:
+  "Hybrid Left Click (FORWARD):
 - In Org Source Block: Drill down to tangled code (g m)
-- In Org Prose/Links: Open source at point (g d)
+- In Org Prose/Links: Open source at point + PUSH TO ARRAY (g d)
 - In Code: Find Definition (LSP)"
   (interactive "e")
   (mouse-set-point event)
@@ -1301,8 +1342,8 @@ If already inside the code body of a block, do nothing."
         ;; Check if we are inside a code block
         (if (org-in-src-block-p)
             (my/org-jump-drill-down)
-          ;; Otherwise, act like standard 'g d'
-          (call-interactively 'my/org-transclusion-open-source-at-point))
+          ;; We are on a link/prose: call the array wrapper!
+          (call-interactively 'my/org-open-source-with-history))
       ;; We are in standard code buffers
       (let ((ident (ignore-errors (xref-backend-identifier-at-point (xref-find-backend)))))
         (if ident
@@ -1310,21 +1351,23 @@ If already inside the code body of a block, do nothing."
           (call-interactively 'xref-find-definitions))))))
 
 (defun my/smart-mouse-right-click (event)
-  "Hybrid Right Click:
-- In Org Mode: Find Backlinks (g r)
+  "Hybrid Right Click (BACKWARD):
+- In Org Mode: POP BACK to the previous Org link
 - In Tangled Code: Surface up to Org Source (g c)
 - In Normal Code: Find References (LSP)"
   (interactive "e")
   (mouse-set-point event)
   (with-selected-window (posn-window (event-start event))
     (if (derived-mode-p 'org-mode)
-        ;; We are in Org -> Find Backlinks
-        (call-interactively 'my/org-transclusion-backlinks)
+        ;; We are in Org -> Pop the History Array!
+        (my/org-pop-link-history)
       ;; We are in Code -> Check if it is a Tangled C++ File
       (let ((is-tangled (save-excursion 
                           (re-search-backward "\\[\\[file:\\(.*?\\)::\\(.*?\\)\\]\\[" nil t))))
         (if is-tangled
+            ;; It's tangled code -> Surface to Org Source
             (my/org-jump-surface-up)
+          ;; Normal code -> Find References
           (call-interactively 'xref-find-references))))))
 
 ;; 1. Global Fallbacks
