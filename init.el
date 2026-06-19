@@ -1286,58 +1286,71 @@ If already inside the code body of a block, do nothing."
 (evil-define-key 'normal 'global (kbd "g m") 'my/org-jump-drill-down)
 
 ;; =================================================================
-;; SMART CTRL + CLICK (Bulletproof against CUA and Minor Modes)
+;; SMART CTRL + CLICK (The Ultimate Hybrid Dispatcher)
 ;; =================================================================
 
-(defun my/smart-mouse-jump-drill-down (event)
-  "Traffic cop for Ctrl + Left Click.
-If in Org-mode: uses your Org drill-down logic.
-If in Code: bypasses interactive prompts to jump natively."
+(defun my/smart-mouse-left-click (event)
+  "Hybrid Left Click:
+- In Org Source Block: Drill down to tangled code (g m)
+- In Org Prose/Links: Open source at point (g d)
+- In Code: Find Definition (LSP)"
   (interactive "e")
   (mouse-set-point event)
-  ;; THE FIX: Force Emacs to activate the clicked window context in the terminal
   (with-selected-window (posn-window (event-start event))
     (if (derived-mode-p 'org-mode)
-        (my/org-jump-drill-down)
-      ;; In code buffers, programmatically grab the word under the mouse 
-      ;; and force LSP to jump, bypassing any terminal prompt confusion.
+        ;; Check if we are inside a code block
+        (if (org-in-src-block-p)
+            (my/org-jump-drill-down)
+          ;; Otherwise, act like standard 'g d'
+          (call-interactively 'my/org-transclusion-open-source-at-point))
+      ;; We are in standard code buffers
       (let ((ident (ignore-errors (xref-backend-identifier-at-point (xref-find-backend)))))
         (if ident
             (xref-find-definitions ident)
-          (call-interactively 'xref-find-definitions)))))) ;; Fallback just in case
+          (call-interactively 'xref-find-definitions))))))
 
-(defun my/org-jump-surface-up-mouse (event)
-  "Mouse wrapper for my/org-jump-surface-up."
+(defun my/smart-mouse-right-click (event)
+  "Hybrid Right Click:
+- In Org Mode: Find Backlinks (g r)
+- In Tangled Code: Surface up to Org Source (g c)
+- In Normal Code: Find References (LSP)"
   (interactive "e")
   (mouse-set-point event)
   (with-selected-window (posn-window (event-start event))
-    (my/org-jump-surface-up)))
+    (if (derived-mode-p 'org-mode)
+        ;; We are in Org -> Find Backlinks
+        (call-interactively 'my/org-transclusion-backlinks)
+      ;; We are in Code -> Check if it is a Tangled C++ File
+      (let ((is-tangled (save-excursion 
+                          (re-search-backward "\\[\\[file:\\(.*?\\)::\\(.*?\\)\\]\\[" nil t))))
+        (if is-tangled
+            (my/org-jump-surface-up)
+          (call-interactively 'xref-find-references))))))
 
 ;; 1. Global Fallbacks
 (global-set-key (kbd "<C-down-mouse-1>") 'ignore)
-(global-set-key (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
+(global-set-key (kbd "<C-mouse-1>") 'my/smart-mouse-left-click)
 (global-set-key (kbd "<C-down-mouse-3>") 'ignore)
-(global-set-key (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse)
+(global-set-key (kbd "<C-mouse-3>") 'my/smart-mouse-right-click)
 
-;; 2. THE FIX: Bind directly into CUA mode instead of setting to nil. 
-;; This prevents CUA from falling back to the default Emacs mouse menu when Vim is OFF.
+;; 2. CUA Mode Overrides
 (with-eval-after-load 'cua-base
   (define-key cua-global-keymap (kbd "<C-down-mouse-1>") 'ignore)
-  (define-key cua-global-keymap (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
+  (define-key cua-global-keymap (kbd "<C-mouse-1>") 'my/smart-mouse-left-click)
   (define-key cua-global-keymap (kbd "<C-down-mouse-3>") 'ignore)
-  (define-key cua-global-keymap (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
+  (define-key cua-global-keymap (kbd "<C-mouse-3>") 'my/smart-mouse-right-click))
 
-;; 3. Evil Mode Overrides (Priority #2)
+;; 3. Evil Mode Overrides
 (with-eval-after-load 'evil
-  (evil-define-key '(normal motion) 'global (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
-  (evil-define-key '(normal motion) 'global (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
+  (evil-define-key '(normal motion) 'global (kbd "<C-mouse-1>") 'my/smart-mouse-left-click)
+  (evil-define-key '(normal motion) 'global (kbd "<C-mouse-3>") 'my/smart-mouse-right-click))
 
-;; 4. Org Mode Overrides (Priority #1 - Text Properties)
+;; 4. Org Mode Overrides
 (with-eval-after-load 'org
   (define-key org-mouse-map (kbd "<C-down-mouse-1>") 'ignore)
-  (define-key org-mouse-map (kbd "<C-mouse-1>") 'my/smart-mouse-jump-drill-down)
+  (define-key org-mouse-map (kbd "<C-mouse-1>") 'my/smart-mouse-left-click)
   (define-key org-mouse-map (kbd "<C-down-mouse-3>") 'ignore)
-  (define-key org-mouse-map (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
+  (define-key org-mouse-map (kbd "<C-mouse-3>") 'my/smart-mouse-right-click))
 
 ;; OR, if you strictly want it to only work in Evil normal state:
 ;; (evil-define-key 'normal 'global (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
@@ -1600,26 +1613,6 @@ If in Code: bypasses interactive prompts to jump natively."
                 (message "Multiple active transclusions found (%d). Press RET to teleport." (length all-matches)))))))))))
 
 (evil-define-key 'normal 'global (kbd "g c") 'my/org-jump-surface-up)
-
-;; Define the missing mouse-wrapper function for bubbling up
-(defun my/org-jump-surface-up-mouse (event)
-  "Mouse wrapper for my/org-jump-surface-up."
-  (interactive "e")
-  (mouse-set-point event)
-  (my/org-jump-surface-up))
-
-;; 1. Kill the default Emacs menu that pops up when you press Ctrl + Right Click down globally
-(global-set-key (kbd "<C-down-mouse-3>") 'ignore)
-
-;; 2. Map the actual click globally so it works when Vim mode is OFF
-(global-set-key (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse)
-
-;; 3. Keep the Evil binding so it works when Vim mode is ON
-(evil-define-key 'normal 'global (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse)
-
-;; 4. Overwrite Org's hidden text-property maps so it works when clicking directly on a link
-(with-eval-after-load 'org
-  (define-key org-mouse-map (kbd "<C-mouse-3>") 'my/org-jump-surface-up-mouse))
 
 ;; =====================================================================
 ;; 1. THE SMART DISPATCHER (Bound to :testjmp)
