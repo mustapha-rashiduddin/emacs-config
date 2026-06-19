@@ -3834,7 +3834,7 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; 4. Enable it (You can now toggle it on and off from the Menu Bar!)
 (tab-bar-mode 0)
 
-(global-set-key (kbd "C-o") #'pop-global-mark)
+(global-set-key (kbd "C-o") #'xref-go-back)
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
