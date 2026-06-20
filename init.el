@@ -1257,17 +1257,6 @@ If already inside the code body of a block, do nothing."
       (message "Org link history array is empty!"))))
 
 ;; =================================================================
-;; SMART C-o (Back Button Override for Org Mode)
-;; =================================================================
-(with-eval-after-load 'org
-  ;; 1. Override C-o when Vim mode is OFF
-  (define-key org-mode-map (kbd "C-o") 'my/org-pop-link-history)
-  
-  ;; 2. Override C-o when Vim mode is ON
-  (with-eval-after-load 'evil
-    (evil-define-key '(normal motion) org-mode-map (kbd "C-o") 'my/org-pop-link-history)))
-
-;; =================================================================
 ;; SMART CTRL + CLICK (The Ultimate Hybrid Dispatcher)
 ;; =================================================================
 
@@ -1340,9 +1329,9 @@ If already inside the code body of a block, do nothing."
 ;; (evil-define-key 'normal 'global (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
 
 (defun my/org-jump-surface-up ()
-  "Surface upward: Tangled Code -> Org Source Block -> Transclusion Clone.
-   Maintains exact row/col persistence with absolutely no window splitting.
-   If a beacon is secretly active, exclusively uses the smart dispatcher."
+  "Surface upward:
+   - In Tangled Code: Jumps up to the original Org Source Block.
+   - In Org Mode: Acts purely as a Back Button (Pops Link History)."
   (interactive)
   (cond
    ;; =======================================================
@@ -1385,216 +1374,10 @@ If already inside the code body of a block, do nothing."
               (message "Could not find block '%s' in %s" block-name org-file)))))))
 
    ;; =======================================================
-   ;; CASE 2: In Org Source -> Beacon Check OR Transclusion Clone(s)
+   ;; CASE 2: In Org Mode -> Pop Link History (Back Button)
    ;; =======================================================
    ((derived-mode-p 'org-mode)
-    (when (and (fboundp 'org-transclusion-within-transclusion-p)
-               (org-transclusion-within-transclusion-p))
-      (user-error "Already at the highest level (Transclusion). Use 'g m' to go down."))
-
-    ;; ONLY scan for beacons if we are actually in an Org file
-    (let ((beacon-ov
-           (catch 'found-beacon
-             (dolist (buf (buffer-list))
-               (when (buffer-live-p buf)
-                 (with-current-buffer buf
-                   (when (derived-mode-p 'org-mode)
-                     (dolist (ov (overlays-in (point-min) (point-max)))
-                       (when (eq (overlay-get ov 'my-preview-state) 'beacon-hidden)
-                         (throw 'found-beacon ov)))))))
-             nil)))
-
-      (if beacon-ov
-          ;; -> BEACON DETECTED: Route to dispatcher (Kill logic handles it on landing)
-          (progn
-            (message "Homing beacon active! Routing to dispatcher...")
-            (my/org-jump-to-beacon))
-
-        ;; -> NORMAL BEHAVIOR: Execute your exact original math
-        (if (not (org-in-src-block-p))
-            
-            ;; -> PROSE DETECTED: Hand over to Smart Dispatcher
-            (progn
-              (message "Prose detected. Handing control to smart dispatcher...")
-              (my/org-jump-to-beacon))
-          
-          ;; -> SOURCE BLOCK DETECTED: Run exact math bubbling
-          (let* ((info (org-babel-get-src-block-info 'light))
-                 (block-name (nth 4 info))
-                 (src-id (save-excursion (ignore-errors (org-back-to-heading t) (org-id-get))))
-                 (current-col (current-column))
-                 (current-line (line-number-at-pos))
-                 (src-head-pos (org-babel-where-is-src-block-head))
-                 (head-line (save-excursion
-                              (goto-char src-head-pos)
-                              (line-number-at-pos)))
-                 (line-offset (- current-line head-line))
-                 (current-win (selected-window))
-                 (source-buf (current-buffer))
-                 (raw-matches '())
-                 (all-matches '())
-                 (seen-keys '()))
-
-            ;; Strategy 1: Hunt for homing beacons
-            (dolist (buf (buffer-list))
-              (when (and (not (eq buf source-buf))
-                         (with-current-buffer buf (derived-mode-p 'org-mode)))
-                (with-current-buffer buf
-                  (dolist (ov (overlays-in (point-min) (point-max)))
-                    (when (overlay-get ov 'my-active-link-preview)
-                      (let* ((beacon-pos (overlay-start ov))
-                             (beacon-text (buffer-substring-no-properties 
-                                           (overlay-start ov) 
-                                           (overlay-end ov))))
-                        
-                        (when (or (and src-id (string-match-p (regexp-quote src-id) beacon-text))
-                                  (and block-name (string-match-p (regexp-quote block-name) beacon-text)))
-                          
-                          (let ((is-open nil))
-                            (save-excursion
-                              (goto-char beacon-pos)
-                              (when (re-search-forward "^[ \t]*#\\+begin_src" (+ beacon-pos 500) t)
-                                (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                                           (org-transclusion-within-transclusion-p))
-                                  (setq is-open t))))
-                            
-                            (when is-open
-                              (push (list buf beacon-pos) raw-matches))))))))))
-
-            ;; Deduplicate raw-matches
-            (dolist (match raw-matches)
-              (let* ((m-buf (car match))
-                 (m-pos (cadr match))
-                 (m-line (with-current-buffer m-buf
-                           (save-excursion
-                             (goto-char m-pos)
-                             (line-number-at-pos))))
-                 (bucket (/ m-line 5))
-                 (key (cons m-buf bucket)))
-                (unless (member key seen-keys)
-                  (push key seen-keys)
-                  (push match all-matches))))
-
-            ;; Strategy 2: Text Fallback
-            (when (null all-matches)
-              (dolist (buf (buffer-list))
-                (when (and (not (eq buf source-buf))
-                           (with-current-buffer buf (derived-mode-p 'org-mode)))
-                  (with-current-buffer buf
-                    (let ((case-fold-search t) (search-invisible t))
-                      (when block-name
-                        (save-excursion
-                          (goto-char (point-min))
-                          (while (re-search-forward (format "^[ \t]*#\\+name:[ \t]*%s" (regexp-quote block-name)) nil t)
-                            (let ((pos (line-beginning-position)) (is-open nil))
-                              (save-excursion
-                                (goto-char pos)
-                                (when (re-search-forward "^[ \t]*#\\+begin_src" (+ pos 500) t)
-                                  (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                                             (org-transclusion-within-transclusion-p))
-                                    (setq is-open t))))
-                              (when is-open (push (list buf pos) all-matches))))))
-                      (when src-id
-                        (save-excursion
-                          (goto-char (point-min))
-                          (while (re-search-forward (regexp-quote src-id) nil t)
-                            (let ((pos (line-beginning-position)) (is-open nil))
-                              (save-excursion
-                                (goto-char pos)
-                                (when (re-search-forward "^[ \t]*#\\+begin_src" (+ pos 500) t)
-                                  (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                                             (org-transclusion-within-transclusion-p))
-                                    (setq is-open t))))
-                              (when is-open (push (list buf pos) all-matches)))))))))))
-
-            (unless all-matches
-              (user-error "Could not find any ACTIVE transclusion clones in open buffers!"))
-
-            (if (= (length all-matches) 1)
-
-                ;; SINGLE MATCH: teleport directly
-                (let* ((match (car all-matches))
-                       (target-buf (car match))
-                       (target-pos (cadr match)))
-                  (evil-set-jump)
-                  (set-window-buffer current-win target-buf)
-                  (select-window current-win)
-                  (set-buffer target-buf)
-                  (goto-char target-pos)
-                  
-                  ;; ---> LANDING SPOT 1: KILL BEACON <---
-                  (let ((landed-ov nil))
-                    (dolist (ov (overlays-at target-pos))
-                      (when (eq (overlay-get ov 'my-preview-state) 'beacon-hidden)
-                        (setq landed-ov ov)))
-                    (when landed-ov
-                      (let ((inhibit-read-only t))
-                        (save-excursion
-                          (goto-char target-pos)
-                          (end-of-line)
-                          (forward-char 1)
-                          (ignore-errors
-                            (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                                       (org-transclusion-within-transclusion-p))
-                              (org-transclusion-remove)))
-                          (let ((was-modified (buffer-modified-p)))
-                            (ignore-errors (delete-region (1- (line-beginning-position)) (line-end-position)))
-                            (set-buffer-modified-p was-modified))))
-                      (delete-overlay landed-ov)
-                      (message "Beacon deactivated at landing site!")))
-                  
-                  (if (re-search-forward "^[ \t]*#\\+begin_src" nil t)
-                      (progn
-                        (beginning-of-line)
-                        (forward-line line-offset)
-                        (move-to-column current-col)
-                        (recenter)
-                        (message "Teleported up to Transclusion! Zero splits."))
-                    (message "Switched buffer, but could not locate #+begin_src for math anchor.")))
-
-              ;; MULTIPLE MATCHES: spawn pristine picker buffer
-              (let ((picker-buf (get-buffer-create "*Org Transclusions*")))
-                (with-current-buffer picker-buf
-                  (let ((inhibit-read-only t))
-                    (erase-buffer)
-
-                    (dolist (match all-matches)
-                      (let* ((m-buf  (car match))
-                             (m-pos  (cadr match))
-                             (m-file (or (buffer-file-name m-buf) (buffer-name m-buf)))
-                             (m-line (with-current-buffer m-buf
-                                       (save-excursion
-                                         (goto-char m-pos)
-                                         (line-number-at-pos))))
-                             (m-text (with-current-buffer m-buf
-                                       (save-excursion
-                                         (goto-char m-pos)
-                                         (buffer-substring-no-properties
-                                          (line-beginning-position)
-                                          (line-end-position))))))
-                        (insert (propertize m-file 'font-lock-face 'compilation-info)
-                                ":"
-                                (propertize (number-to-string m-line) 'font-lock-face 'compilation-line-number)
-                                ":"
-                                m-text "\n")))
-
-                    (special-mode)
-
-                    (setq-local my/org-transclusion-jump-matches all-matches)
-                    (setq-local my/org-transclusion-jump-line-offset line-offset)
-                    (setq-local my/org-transclusion-jump-col current-col)
-                    (setq-local my/org-transclusion-jump-source-win current-win)
-
-                    (evil-local-set-key 'normal (kbd "RET") 'my/org-transclusion-picker-jump)
-                    (evil-local-set-key 'motion (kbd "RET") 'my/org-transclusion-picker-jump)
-                    (local-set-key (kbd "RET") 'my/org-transclusion-picker-jump)
-                    (local-set-key (kbd "<return>") 'my/org-transclusion-picker-jump)
-
-                    (goto-char (point-min))))
-
-                (switch-to-buffer picker-buf)
-                (delete-other-windows)
-                (message "Multiple active transclusions found (%d). Press RET to teleport." (length all-matches)))))))))))
+    (my/org-pop-link-history))))
 
 (evil-define-key 'normal 'global (kbd "g c") 'my/org-jump-surface-up)
 
