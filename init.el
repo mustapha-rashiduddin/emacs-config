@@ -470,11 +470,11 @@
 
 (defun my/smart-gd ()
   "Traffic cop for `g d'.
-If in Org-mode: Drill down into transclusion/source. 
+If in Org-mode: Jump to the ID link under cursor.
 If in Code: Tell LSP to jump to the function definition."
   (interactive)
   (if (derived-mode-p 'org-mode)
-      (call-interactively 'my/org-transclusion-open-source-at-point)
+      (call-interactively 'my/org-open-id-at-point)
     (call-interactively 'xref-find-definitions)))
 
 (defun my/smart-gr ()
@@ -483,35 +483,46 @@ If in Org-mode: Find Org-Roam backlinks.
 If in Code: Tell LSP to find where this function is used."
   (interactive)
   (if (derived-mode-p 'org-mode)
-      (call-interactively 'my/org-transclusion-backlinks)
+      (call-interactively 'my/org-find-backlinks)
     (call-interactively 'xref-find-references)))
-
-;; Silence the byte-compiler warning for the internal ElDoc function
-;;(declare-function eldoc--doc-buffer "eldoc")
 
 ;; =====================================================================
 ;; NUCLEAR ELDOC HIJACK (Guaranteed No-Split Window Replacement)
 ;; =====================================================================
 
-;; 1. Force ElDoc to ALWAYS use the buffer. (By default, if the doc is 
-;;    short, it just flashes at the bottom. This forces it to a window).
 (setq eldoc-display-functions '(eldoc-display-in-buffer))
 
-;; 2. THE NUCLEAR BOMB: Tell the Emacs Window Manager that whenever 
-;;    the *eldoc* buffer appears, it MUST replace the current window.
 (add-to-list 'display-buffer-alist
              '("^\\*eldoc\\*"
                (display-buffer-same-window)))
 
-;; 3. The newly stripped-down, bulletproof Smart K
+(defun my/org-jump-to-src-block ()
+  "Jump to the start of the code in the next source block.
+If already inside the code body of a block, do nothing."
+  (interactive)
+  (when (derived-mode-p 'org-mode)
+    ;; `t` argument checks if we are STRICTLY inside the code body.
+    (unless (org-in-src-block-p t)
+      (let* ((case-fold-search t)
+             (match-pos (save-excursion
+                          (beginning-of-line)
+                          (re-search-forward "^[ \t]*#\\+begin_src" nil t))))
+        (when match-pos
+          (when (fboundp 'evil-set-jump) (evil-set-jump)) ;; Drop a history marker!
+          (goto-char match-pos)
+          (forward-line 1)      ; Move down one line into the actual code
+          (back-to-indentation) ; Move to the start of the text
+          (message "Jumped to source block!"))))))
+
 (defun my/smart-K ()
   "Traffic cop for `K'.
-If in Org-mode: Toggle transclusion.
+If in Org-mode: Jump down to the next source block.
 If in Code: Force ElDoc to fetch and hijack the window seamlessly."
   (interactive)
   (if (derived-mode-p 'org-mode)
-      (call-interactively 'my/org-transclusion-toggle)
+      (call-interactively 'my/org-jump-to-src-block)
 
+    ;; --- CODE MODE ELDOC BEHAVIOR ---
     ;; 1. Drop a breadcrumb for Evil so C-o works perfectly
     (when (fboundp 'evil-set-jump)
       (evil-set-jump))
@@ -523,11 +534,8 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
           (erase-buffer))))
 
     ;; 3. Ask Eglot to fetch data asynchronously. 
-    ;;    Because of the global window rule we set above, Emacs will 
-    ;;    natively hijack your screen the instant the text arrives.
     (eldoc)))
 
-;; 4. Ensure 'q' flawlessly puts your C++ code back on the screen
 (add-hook 'eldoc-mode-hook
           (lambda ()
             (when (string= (buffer-name) "*eldoc*")
@@ -538,8 +546,6 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
                                (when (fboundp 'evil-jump-backward)
                                  (evil-jump-backward 1)))))))
 
-;; Forcefully rip out any old bindings and hard-wire the Traffic Cops
-;; directly into Evil's core nervous system.
 (with-eval-after-load 'evil
   (define-key evil-normal-state-map (kbd "g d") 'my/smart-gd)
   (define-key evil-normal-state-map (kbd "g r") 'my/smart-gr)
@@ -549,6 +555,16 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
   (define-key evil-motion-state-map (kbd "g r") 'my/smart-gr)
   (define-key evil-motion-state-map (kbd "K")   'my/smart-K))
 
+(defun my/org-open-id-at-point ()
+  "Jump exactly to an ID link."
+  (interactive)
+  (let* ((context (org-element-context))
+         (type (car context)))
+    (if (and (eq type 'link) (string= (org-element-property :type context) "id"))
+        (let ((id (org-element-property :path context)))
+          (org-id-goto id)
+          (message "Teleported to: %s" id))
+      (message "No ID link exactly under cursor."))))
 
   ;; Custom function to delete the current roam file
   (defun my/org-roam-delete-current-node ()
@@ -590,345 +606,8 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 ;; Minibuffer SPC fix
 (define-key minibuffer-local-completion-map (kbd "SPC") 'self-insert-command)
 
-(use-package org-transclusion
-  :straight (:host github :repo "nobiot/org-transclusion")
-  :config
-  (evil-define-key '(normal motion) 'org-mode-map
-    (kbd "SPC n t") 'org-transclusion-mode
-    (kbd "SPC n a") 'org-transclusion-add
-    (kbd "SPC n m") 'org-transclusion-make-from-link
-    (kbd "SPC n r") 'org-transclusion-remove
-    ;;(kbd "g d") 'my/org-transclusion-open-source-at-point
-    ;;(kbd "g r") 'my/org-transclusion-backlinks
-    (kbd "g s") 'my/org-toggle-link-under-cursor    ;; <-- NEW PROPER BINDING
-    ;;(kbd "K") 'my/org-transclusion-toggle
-    (kbd "g y") #'my/org-store-link-smart   ; 'y' for Yank link
-    (kbd "g p") #'my/org-insert-link-clean))
-
-(defun my/org-transclusion-cleanup-ephemera ()
-  "Garbage collector: sweeps and removes temporary transclusions before saving."
-  (let ((was-modified (buffer-modified-p))
-        (found-any nil))
-    (save-excursion
-      (goto-char (point-min))
-      (while (text-property-search-forward 'my-inline-preview t t)
-        (setq found-any t)
-        (beginning-of-line)
-        (when (org-transclusion-within-transclusion-p)
-          (org-transclusion-remove))
-        (delete-region (1- (point)) (line-end-position))))
-    (when found-any
-      (remove-overlays (point-min) (point-max) 'my-active-link-preview t)
-      ;; Don't let the cleanup itself mark the buffer as modified
-      (set-buffer-modified-p was-modified))))
-
-;; Run the garbage collector right before saving, or if Emacs kills the buffer
-(add-hook 'before-save-hook #'my/org-transclusion-cleanup-ephemera)
-(add-hook 'kill-buffer-hook #'my/org-transclusion-cleanup-ephemera)
-
-(defun my/org-toggle-beacon ()
-  "Turn the link into a homing beacon. 
-   Secretly opens the transclusion to allow
-   math jumps, but completely hides it visually, 
-   using a high-priority mask to nuke the
-   vertical transclusion line."
-  (interactive)
-  (let* ((context (org-element-context))
-         (type (car context)))
-         
-    (if (eq type 'link)
-        (let* ((beg (org-element-property :begin context))
-               (end (org-element-property :end context))
-               (tracker-ov nil))
-               
-          (dolist (ov (overlays-at beg))
-            (when (overlay-get ov 'my-active-link-preview)
-              (setq tracker-ov ov)))
-              
-          (if tracker-ov
-              ;; ==========================================
-              ;; TURN OFF: Remove transclusion and beacon
-              ;; ==========================================
-              (progn
-                (save-excursion
-                  (goto-char beg)
-                  (end-of-line)
-                  (forward-char 1)
-                  (when (org-transclusion-within-transclusion-p)
-                    (org-transclusion-remove))
-                  (let ((was-modified (buffer-modified-p)))
-                    (delete-region (1- (line-beginning-position)) (line-end-position))
-                    (set-buffer-modified-p was-modified)))
-                (delete-overlay tracker-ov)
-                (message "Beacon deactivated."))
-                
-            ;; ==========================================
-            ;; TURN ON: Create beacon, transclude, hide all
-            ;; ==========================================
-            (let ((link-str (buffer-substring-no-properties beg end)))
-              (let ((ov (make-overlay beg end)))
-                (overlay-put ov 'face '(:foreground "purple" :weight bold))
-                (overlay-put ov 'my-active-link-preview t)
-                (overlay-put ov 'my-preview-state 'beacon-hidden)
-                (setq tracker-ov ov))
-                
-              (save-excursion
-                (end-of-line)
-                (let ((insert-pos (point))
-                      (was-modified (buffer-modified-p)))
-                  
-                  (insert "\n#+transclude: " link-str)
-                  (put-text-property insert-pos (point) 'my-inline-preview t)
-                  
-                  (goto-char (1+ insert-pos))
-                  (condition-case err
-                      (progn
-                        (org-transclusion-add)
-                        
-                        (save-excursion
-                          ;; 1. NUKE THE NEWLINE'S VERTICAL LINE
-                          ;; We cover the \n character. It stays visible, but we strip its ability
-                          ;; to project the vertical transclusion border.
-                          (let ((nl-ov (make-overlay insert-pos (1+ insert-pos))))
-                            (overlay-put nl-ov 'priority 100)
-                            (overlay-put nl-ov 'line-prefix "")
-                            (overlay-put nl-ov 'wrap-prefix "")
-                            (overlay-put nl-ov 'evaporate t))
-                          
-                          ;; 2. HIDE THE REST OF THE TRANSCLUSION
-                          (goto-char (1+ insert-pos))
-                          (let ((hide-start (1+ insert-pos))) 
-                            (forward-line 1)
-                            (while (and (not (eobp))
-                                        (save-excursion 
-                                          (beginning-of-line)
-                                          (org-transclusion-within-transclusion-p)))
-                              (forward-line 1))
-                            
-                            (let ((hide-ov (make-overlay hide-start (point))))
-                              (overlay-put hide-ov 'invisible t)
-                              (overlay-put hide-ov 'priority 100)
-                              ;; Also strip prefixes here just in case Emacs tries to draw them on the collapsed text
-                              (overlay-put hide-ov 'line-prefix "")
-                              (overlay-put hide-ov 'wrap-prefix "")
-                              (overlay-put hide-ov 'evaporate t)
-                              
-                              ;; Remove underlying properties from any other overlays
-                              (dolist (o (overlays-in hide-start (point)))
-                                (unless (eq o hide-ov)
-                                  (overlay-put o 'line-prefix nil)
-                                  (overlay-put o 'wrap-prefix nil)
-                                  (overlay-put o 'before-string nil)
-                                  (overlay-put o 'display nil))))))
-                              
-                        (message "Beacon deployed! (Transclusion secretly active)"))
-                    (error
-                     (delete-region insert-pos (line-end-position))
-                     (delete-overlay tracker-ov)
-                     (message "Could not deploy beacon: %s" (error-message-string err))))
-                     
-                  (set-buffer-modified-p was-modified))))))
-      (user-error "Not on an Org link!"))))
-
-;; Bind to Evil Ex-command
-(evil-ex-define-cmd "beacon" 'my/org-toggle-beacon)
-
-(defun my/org-jump-to-src-block ()
-  "Jump to the start of the code in the next source block.
-If already inside the code body of a block, do nothing."
-  (interactive)
-  ;; Only execute if we are actually in an Org file
-  (when (derived-mode-p 'org-mode)
-    ;; `org-in-src-block-p` with a `t` argument checks if we are STRICTLY inside
-    ;; the code body. If we are on the #+begin_src line, it returns nil.
-    (unless (org-in-src-block-p t)
-      (let* ((case-fold-search t) ; Make regex case-insensitive for #+BEGIN_SRC
-             ;; Search forward, but start from the beginning of the current line
-             ;; so we catch the block if the cursor is currently on #+begin_src
-             (match-pos (save-excursion
-                          (beginning-of-line)
-                          (re-search-forward "^[ \t]*#\\+begin_src" nil t))))
-        (when match-pos
-          (goto-char match-pos)
-          (forward-line 1)      ; Move down one line into the actual code
-          (back-to-indentation) ; Move to the start of the text (skipping spaces)
-          (message "Jumped to source block!"))))))
-
-(defun my/org-transclusion-toggle ()
-  "Smart K toggle. 
-   Code blocks: [1] Open   -> [2] Hide Wrappers -> [3] Close
-   Prose notes: [1] Open   -> [2] Close
-   Beacons:     [1] Active -> [2] Off"
-  (interactive)
-  (let* ((context (org-element-context))
-         (type (car context))
-         (in-transclusion (org-transclusion-within-transclusion-p)))
-         
-    (cond
-     ;; =======================================================
-     ;; CASE 1: Inside an expanded block -> Close it & TELEPORT BACK!
-     ;; =======================================================
-     (in-transclusion
-      (org-transclusion-remove)
-      (beginning-of-line)
-      (when (and (not (bobp))
-                 (get-text-property (1- (point)) 'my-inline-preview))
-        
-        (let ((jump-pos nil)
-              (was-modified (buffer-modified-p)))
-          (dolist (ov (overlays-in (line-beginning-position 0) (line-end-position 0)))
-            (when (overlay-get ov 'my-active-link-preview)
-              (setq jump-pos (overlay-start ov))
-              (delete-overlay ov)))
-              
-          (delete-region (1- (point)) (line-end-position))
-          (set-buffer-modified-p was-modified)
-          
-          (when jump-pos
-            (goto-char jump-pos))))
-      (message "Transclusion closed"))
-      
-     ;; =======================================================
-     ;; CASE 2: On a hard-coded `#+transclude:` line -> Toggle normally
-     ;; =======================================================
-     ((save-excursion
-        (beginning-of-line)
-        (looking-at "^[ \t]*#\\+transclude:"))
-      (org-transclusion-add)
-      (message "Transclusion toggled"))
-
-     ;; =======================================================
-     ;; CASE 3: On an inline link -> Dynamic Cycle (or Beacon Kill)
-     ;; =======================================================
-     ((eq type 'link)
-      (let* ((beg (org-element-property :begin context))
-             (end (org-element-property :end context))
-             (tracker-ov nil))
-             
-        (dolist (ov (overlays-at beg))
-          (when (overlay-get ov 'my-active-link-preview)
-            (setq tracker-ov ov)))
-            
-        (let ((state (if tracker-ov (overlay-get tracker-ov 'my-preview-state) 'closed)))
-          
-          (cond
-           ;; ---------------------------------------------------------
-           ;; STATE 0 -> STATE 1: Always Open Standard First
-           ;; ---------------------------------------------------------
-           ((eq state 'closed)
-            (let ((link-str (buffer-substring-no-properties beg end)))
-              (let ((ov (make-overlay beg end)))
-                (overlay-put ov 'face '(:foreground "red" :weight bold))
-                (overlay-put ov 'my-active-link-preview t)
-                (overlay-put ov 'my-preview-state 'standard)
-                (setq tracker-ov ov))
-                
-              (save-excursion
-                (end-of-line)
-                (let ((insert-pos (point))
-                      (was-modified (buffer-modified-p)))
-                  
-                  (insert "\n#+transclude: " link-str)
-                  (put-text-property insert-pos (point) 'my-inline-preview t)
-                  
-                  (goto-char (1+ insert-pos))
-                  (condition-case err
-                      (progn
-                        (org-transclusion-add)
-                        (message "Inline preview: [1] Standard Mode"))
-                    (error
-                     (delete-region insert-pos (line-end-position))
-                     (delete-overlay tracker-ov)
-                     (message "Could not transclude link: %s" (error-message-string err))))
-                     
-                  (set-buffer-modified-p was-modified)))))
-
-           ;; ---------------------------------------------------------
-           ;; STATE 1 -> STATE 2 (Hide) OR STATE 0 (Close)
-           ;; ---------------------------------------------------------
-           ((eq state 'standard)
-            (save-excursion
-              (end-of-line)
-              (let ((insert-pos (point))
-                    (was-modified (buffer-modified-p))
-                    (has-src nil))
-                
-                (goto-char (1+ insert-pos))
-                (let ((search-bound (+ (point) 10000)))
-                  (when (re-search-forward "^[ \t]*#\\+begin_src.*?\n" search-bound t)
-                    (setq has-src t)
-                    (let ((hide-top (make-overlay (1+ insert-pos) (point))))
-                      (overlay-put hide-top 'invisible t)
-                      (overlay-put hide-top 'evaporate t))
-                      
-                    (when (re-search-forward "^[ \t]*#\\+end_src" search-bound t)
-                      (let* ((start-hide (max (point-min) (1- (match-beginning 0))))
-                             (hide-bot (make-overlay start-hide (line-end-position))))
-                        (overlay-put hide-bot 'invisible t)
-                        (overlay-put hide-bot 'evaporate t)))))
-                
-                ;; THE SPLIT LOGIC
-                (if has-src
-                    ;; It is a source block -> Advance to State 2 (Hidden)
-                    (progn
-                      (overlay-put tracker-ov 'my-preview-state 'hidden)
-                      (set-buffer-modified-p was-modified)
-                      (message "Inline preview: [2/3] Hidden Wrappers"))
-                      
-                  ;; It is normal text -> Skip State 2 and Close it!
-                  (goto-char (1+ insert-pos))
-                  (when (org-transclusion-within-transclusion-p)
-                    (org-transclusion-remove))
-                  (delete-region insert-pos (line-end-position))
-                  (set-buffer-modified-p was-modified)
-                  (delete-overlay tracker-ov)
-                  (message "Inline preview: Closed (Prose note)")))))
-
-           ;; ---------------------------------------------------------
-           ;; STATE 2 -> STATE 0: Closed (For code blocks)
-           ;; ---------------------------------------------------------
-           ((eq state 'hidden)
-            (save-excursion
-              (end-of-line)
-              (forward-char 1)
-              (when (org-transclusion-within-transclusion-p)
-                (org-transclusion-remove))
-                
-              (let ((was-modified (buffer-modified-p)))
-                (delete-region (1- (line-beginning-position)) (line-end-position))
-                (set-buffer-modified-p was-modified)))
-                
-            (delete-overlay tracker-ov)
-            (message "Inline preview: [3/3] Closed"))
-
-           ;; ---------------------------------------------------------
-           ;; STATE BEACON -> STATE 0: Turn off beacon
-           ;; ---------------------------------------------------------
-           ((eq state 'beacon-hidden)
-            (save-excursion
-              (goto-char beg)
-              (end-of-line)
-              (forward-char 1)
-              (when (org-transclusion-within-transclusion-p)
-                (org-transclusion-remove))
-              (let ((was-modified (buffer-modified-p)))
-                (delete-region (1- (line-beginning-position)) (line-end-position))
-                (set-buffer-modified-p was-modified)))
-            (delete-overlay tracker-ov)
-            (message "Beacon deactivated (Toggled via K)."))))))
-
-     ;; =======================================================
-     ;; CASE 4: Fallback -> Jump to Source Block
-     ;; =======================================================
-     (t
-      ;; Triggers when not on a transclude line, link, or inside a transclusion.
-      ;; Relies on my/org-jump-to-src-block's internal logic to abort safely 
-      ;; if already in a block or if no block exists.
-      (my/org-jump-to-src-block)))))
-
 (setq org-src-content-indentation 0)
 (setq org-src-preserve-indentation t)
-
 
 ;; =======================================================
 ;; tangle, detangle
@@ -1088,6 +767,9 @@ If already inside the code body of a block, do nothing."
             (message "Link revealed. Press `g s` to hide, or move away."))
         (message "No link under cursor.")))))
 
+(with-eval-after-load 'evil
+  (evil-define-key '(normal motion) 'org-mode-map (kbd "g s") 'my/org-toggle-link-under-cursor))
+
 ;; ==========================================
 ;; JUMP LOGIC TO AND BACK FROM TANGLED FILE
 ;; ==========================================
@@ -1161,7 +843,7 @@ If already inside the code body of a block, do nothing."
       (push m my/org-link-history-array)))
       
   ;; 2. Execute your original jumping function
-  (call-interactively 'my/org-transclusion-open-source-at-point))
+  (call-interactively 'my/org-open-id-at-point))
 
 (defun my/org-pop-link-history ()
   "Pop the last clicked link from the array and teleport back to it."
@@ -1252,9 +934,6 @@ If already inside the code body of a block, do nothing."
   (define-key org-mouse-map (kbd "<C-down-mouse-3>") 'ignore)
   (define-key org-mouse-map (kbd "<C-mouse-3>") 'my/smart-mouse-right-click))
 
-;; OR, if you strictly want it to only work in Evil normal state:
-;; (evil-define-key 'normal 'global (kbd "<C-mouse-1>") 'my/org-jump-drill-down-mouse)
-
 (defun my/org-jump-surface-up ()
   "Surface upward:
    - In Tangled Code: Jumps up to the original Org Source Block.
@@ -1308,546 +987,26 @@ If already inside the code body of a block, do nothing."
 
 (evil-define-key 'normal 'global (kbd "g c") 'my/org-jump-surface-up)
 
-;; =====================================================================
-;; 1. THE SMART DISPATCHER (Bound to :testjmp)
-;; =====================================================================
-(defun my/org-jump-to-beacon ()
-  "Smart jump to transclusion homing beacon.
-   Automatically routes to src-block logic or prose logic based on context."
-  (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Not in an Org buffer!"))
-  (when (and (fboundp 'org-transclusion-within-transclusion-p)
-             (org-transclusion-within-transclusion-p))
-    (user-error "Already at the highest level (Transclusion)."))
-
-  ;; Check if we are inside or on a source block
-  (let ((element-type (ignore-errors (car (org-element-at-point)))))
-    (if (or (ignore-errors (org-babel-get-src-block-info 'light))
-            (eq element-type 'src-block))
-        (progn
-          (message "Source block detected. Routing to src-block jumper...")
-          (my/org-jump-to-beacon-src))
-      (progn
-        (message "Prose detected. Routing to prose jumper...")
-        (my/org-jump-to-beacon-prose)))))
-
-(evil-ex-define-cmd "testjmp" 'my/org-jump-to-beacon)
-
-
-;; =====================================================================
-;; 2. YOUR ORIGINAL SOURCE-BLOCK LOGIC (Renamed to -src)
-;; =====================================================================
-(defun my/org-jump-to-beacon-src ()
-  "Jump directly to the transclusion homing beacon without math offsets."
-  (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Not in an Org buffer!"))
-  (when (and (fboundp 'org-transclusion-within-transclusion-p)
-             (org-transclusion-within-transclusion-p))
-    (user-error "Already at the highest level (Transclusion)."))
-
-  (let* ((info (ignore-errors (org-babel-get-src-block-info 'light)))
-         (block-name (or (nth 4 info)
-                         (ignore-errors (org-element-property :name (org-element-at-point)))))
-         (src-id (or (org-id-get)
-                     (save-excursion 
-                       (ignore-errors (org-back-to-heading t))
-                       (org-id-get))))
-         (current-win (selected-window))
-         (source-buf (current-buffer))
-         (raw-matches '())
-         (all-matches '())
-         (seen-keys '()))
-
-    (dolist (buf (buffer-list))
-      (when (and (not (eq buf source-buf))
-                 (with-current-buffer buf (derived-mode-p 'org-mode)))
-        (with-current-buffer buf
-          (dolist (ov (overlays-in (point-min) (point-max)))
-            (when (overlay-get ov 'my-active-link-preview)
-              (let* ((beacon-pos (overlay-start ov))
-                     (beacon-text (buffer-substring-no-properties 
-                                   (overlay-start ov) 
-                                   (overlay-end ov))))
-                
-                (when (or (and src-id (string-match-p (regexp-quote src-id) beacon-text))
-                          (and block-name (string-match-p (regexp-quote block-name) beacon-text)))
-                  
-                  (let ((is-open nil))
-                    (save-excursion
-                      (goto-char beacon-pos)
-                      (let ((limit (min (+ beacon-pos 500) (point-max))))
-                        (while (and (< (point) limit) (not is-open))
-                          (if (and (fboundp 'org-transclusion-within-transclusion-p)
-                                   (org-transclusion-within-transclusion-p))
-                              (setq is-open t)
-                            (forward-char 1)))))
-                    
-                    (when is-open
-                      (push (list buf beacon-pos) raw-matches))))))))))
-
-    (dolist (match raw-matches)
-      (let* ((m-buf (car match))
-             (m-pos (cadr match))
-             (m-line (with-current-buffer m-buf
-                       (save-excursion
-                         (goto-char m-pos)
-                         (line-number-at-pos))))
-             (bucket (/ m-line 5))
-             (key (cons m-buf bucket)))
-        (unless (member key seen-keys)
-          (push key seen-keys)
-          (push match all-matches))))
-
-    (when (null all-matches)
-      (dolist (buf (buffer-list))
-        (when (and (not (eq buf source-buf))
-                   (with-current-buffer buf (derived-mode-p 'org-mode)))
-          (with-current-buffer buf
-            (let ((case-fold-search t) (search-invisible t))
-              (when block-name
-                (save-excursion
-                  (goto-char (point-min))
-                  (while (re-search-forward (format "^[ \t]*#\\+name:[ \t]*%s" (regexp-quote block-name)) nil t)
-                    (let ((pos (line-beginning-position)) (is-open nil))
-                      (save-excursion
-                        (goto-char pos)
-                        (let ((limit (min (+ pos 500) (point-max))))
-                          (while (and (< (point) limit) (not is-open))
-                            (if (and (fboundp 'org-transclusion-within-transclusion-p)
-                                     (org-transclusion-within-transclusion-p))
-                                (setq is-open t)
-                              (forward-char 1)))))
-                      (when is-open (push (list buf pos) all-matches))))))
-              (when src-id
-                (save-excursion
-                  (goto-char (point-min))
-                  (while (re-search-forward (regexp-quote src-id) nil t)
-                    (let ((pos (line-beginning-position)) (is-open nil))
-                      (save-excursion
-                        (goto-char pos)
-                        (let ((limit (min (+ pos 500) (point-max))))
-                          (while (and (< (point) limit) (not is-open))
-                            (if (and (fboundp 'org-transclusion-within-transclusion-p)
-                                     (org-transclusion-within-transclusion-p))
-                                (setq is-open t)
-                              (forward-char 1)))))
-                      (when is-open (push (list buf pos) all-matches)))))))))))
-
-    (unless all-matches
-      (user-error "Could not find any ACTIVE transclusion clones in open buffers!"))
-
-    (if (= (length all-matches) 1)
-
-        ;; -----------------------------------------------
-        ;; SINGLE MATCH: teleport directly NO MATH!
-        ;; -----------------------------------------------
-        (let* ((match (car all-matches))
-               (target-buf (car match))
-               (target-pos (cadr match)))
-          (evil-set-jump)
-          (set-window-buffer current-win target-buf)
-          (select-window current-win)
-          (set-buffer target-buf)
-          
-          (goto-char target-pos)
-          
-          ;; ---> LANDING SPOT 2: KILL BEACON <---
-          (let ((landed-ov nil))
-            (dolist (ov (overlays-at target-pos))
-              (when (eq (overlay-get ov 'my-preview-state) 'beacon-hidden)
-                (setq landed-ov ov)))
-            (when landed-ov
-              (let ((inhibit-read-only t))
-                (save-excursion
-                  (goto-char target-pos)
-                  (end-of-line)
-                  (forward-char 1)
-                  (ignore-errors
-                    (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                               (org-transclusion-within-transclusion-p))
-                      (org-transclusion-remove)))
-                  (let ((was-modified (buffer-modified-p)))
-                    (ignore-errors (delete-region (1- (line-beginning-position)) (line-end-position)))
-                    (set-buffer-modified-p was-modified))))
-              (delete-overlay landed-ov)
-              (message "Beacon deactivated at landing site!")))
-              
-          (recenter)
-          (message "Teleported directly to homing beacon!"))
-
-      ;; -----------------------------------------------
-      ;; MULTIPLE MATCHES: spawn pristine picker buffer
-      ;; -----------------------------------------------
-      (let ((picker-buf (get-buffer-create "*Org Transclusions*")))
-        (with-current-buffer picker-buf
-          (let ((inhibit-read-only t))
-            (erase-buffer)
-
-            (dolist (match all-matches)
-              (let* ((m-buf  (car match))
-                     (m-pos  (cadr match))
-                     (m-file (or (buffer-file-name m-buf) (buffer-name m-buf)))
-                     (m-line (with-current-buffer m-buf
-                               (save-excursion
-                                 (goto-char m-pos)
-                                 (line-number-at-pos))))
-                     (m-text (with-current-buffer m-buf
-                               (save-excursion
-                                 (goto-char m-pos)
-                                 (buffer-substring-no-properties
-                                  (line-beginning-position)
-                                  (line-end-position))))))
-                (insert (propertize m-file 'font-lock-face 'compilation-info)
-                        ":"
-                        (propertize (number-to-string m-line) 'font-lock-face 'compilation-line-number)
-                        ":"
-                        m-text "\n")))
-
-            (special-mode)
-
-            (setq-local my/org-transclusion-jump-matches all-matches)
-            (setq-local my/org-transclusion-jump-source-win current-win)
-            (setq-local my/org-transclusion-jump-no-math t)
-
-            (evil-local-set-key 'normal (kbd "RET") 'my/org-transclusion-picker-jump)
-            (evil-local-set-key 'motion (kbd "RET") 'my/org-transclusion-picker-jump)
-            (local-set-key (kbd "RET") 'my/org-transclusion-picker-jump)
-            (local-set-key (kbd "<return>") 'my/org-transclusion-picker-jump)
-
-            (goto-char (point-min))))
-
-        (switch-to-buffer picker-buf)
-        (delete-other-windows)
-        (message "Multiple active transclusions found (%d). Press RET to teleport." (length all-matches))))))
-
-;; =====================================================================
-;; 3. YOUR ORIGINAL SRC-BLOCK HELPER (Picker)
-;; =====================================================================
-(defun my/org-transclusion-picker-jump ()
-  "Jump to the transclusion selected in the *Org Transclusions* picker."
-  (interactive)
-  (let* ((matches     (and (boundp 'my/org-transclusion-jump-matches) 
-                           my/org-transclusion-jump-matches))
-         (line-offset (if (boundp 'my/org-transclusion-jump-line-offset) 
-                          my/org-transclusion-jump-line-offset 0)) 
-         (col         (if (boundp 'my/org-transclusion-jump-col) 
-                          my/org-transclusion-jump-col 0))         
-         (source-win  (and (boundp 'my/org-transclusion-jump-source-win) 
-                           my/org-transclusion-jump-source-win))
-         (no-math     (and (boundp 'my/org-transclusion-jump-no-math) 
-                           my/org-transclusion-jump-no-math))
-         (line-num    (line-number-at-pos))
-         (match       (nth (1- line-num) matches)))
-    
-    (unless match
-      (user-error "No match on this line!"))
-      
-    (let ((target-buf (car match))
-          (target-pos (cadr match)))
-      (unless (buffer-live-p target-buf)
-        (user-error "Target buffer is no longer live!"))
-        
-      (evil-set-jump)
-      
-      (let ((win (if (window-live-p source-win) source-win (selected-window))))
-        (set-window-buffer win target-buf)
-        (select-window win)
-        (set-buffer target-buf)
-        (goto-char target-pos)
-        
-        ;; ---> LANDING SPOT 3: KILL BEACON <---
-        (let ((landed-ov nil))
-          (dolist (ov (overlays-at target-pos))
-            (when (eq (overlay-get ov 'my-preview-state) 'beacon-hidden)
-              (setq landed-ov ov)))
-          (when landed-ov
-            (let ((inhibit-read-only t))
-              (save-excursion
-                (goto-char target-pos)
-                (end-of-line)
-                (forward-char 1)
-                (ignore-errors
-                  (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                             (org-transclusion-within-transclusion-p))
-                    (org-transclusion-remove)))
-                (let ((was-modified (buffer-modified-p)))
-                  (ignore-errors (delete-region (1- (line-beginning-position)) (line-end-position)))
-                  (set-buffer-modified-p was-modified))))
-            (delete-overlay landed-ov)
-            (message "Beacon deactivated at landing site!")))
-
-        ;; DYNAMIC EXECUTION: Math (g c) vs No Math (:testjmp)
-        (if no-math
-            (progn
-              (recenter)
-              (delete-other-windows)
-              (message "Teleported directly to homing beacon!"))
-          
-          ;; Legacy behavior for 'g c'
-          (if (re-search-forward "^[ \t]*#\\+begin_src" nil t)
-              (progn
-                (beginning-of-line)
-                (forward-line line-offset)
-                (move-to-column col)
-                (recenter)
-                (delete-other-windows)
-                (message "Teleported to transclusion! Zero splits."))
-            (message "Switched buffer, but could not locate #+begin_src.")))))))
-
-
-;; =====================================================================
-;; 4. THE PROSE LOGIC
-;; =====================================================================
-(defun my/org-jump-to-beacon-prose ()
-  "Jump directly to the transclusion homing beacon for PROSE."
-  (interactive)
-  (unless (derived-mode-p 'org-mode)
-    (user-error "Not in an Org buffer!"))
-  (when (and (fboundp 'org-transclusion-within-transclusion-p)
-             (org-transclusion-within-transclusion-p))
-    (user-error "Already at the highest level (Transclusion)."))
-
-  (let* ((block-name (ignore-errors (org-element-property :name (org-element-at-point))))
-         (src-id (or (org-id-get)
-                     (save-excursion 
-                       (ignore-errors (org-back-to-heading t))
-                       (org-id-get))))
-         (heading-title (save-excursion 
-                          (ignore-errors 
-                            (org-back-to-heading t) 
-                            (nth 4 (org-heading-components)))))
-         (current-win (selected-window))
-         (source-buf (current-buffer))
-         (all-matches '())
-         (seen-keys '()))
-
-    (dolist (buf (buffer-list))
-      (when (and (not (eq buf source-buf))
-                 (with-current-buffer buf (derived-mode-p 'org-mode)))
-        (with-current-buffer buf
-          (dolist (ov (overlays-in (point-min) (point-max)))
-            (when (overlay-get ov 'my-active-link-preview)
-              (let* ((beacon-pos (overlay-start ov))
-                     (beacon-text (buffer-substring-no-properties 
-                                   (overlay-start ov) 
-                                   (overlay-end ov))))
-                
-                (when (or (and src-id (string-match-p (regexp-quote src-id) beacon-text))
-                          (and block-name (string-match-p (regexp-quote block-name) beacon-text))
-                          (and heading-title (string-match-p (regexp-quote heading-title) beacon-text)))
-                  
-                  (let* ((m-line (line-number-at-pos beacon-pos))
-                         (key (cons buf m-line)))
-                    (unless (member key seen-keys)
-                      (let ((is-open nil))
-                        (save-excursion
-                          (goto-char beacon-pos)
-                          (let ((limit (min (+ beacon-pos 500) (point-max))))
-                            (while (and (< (point) limit) (not is-open))
-                              (if (and (fboundp 'org-transclusion-within-transclusion-p)
-                                       (org-transclusion-within-transclusion-p))
-                                  (setq is-open t)
-                                (forward-char 1)))))
-                        
-                        (when is-open
-                          (push key seen-keys)
-                          (push (list buf beacon-pos) all-matches))))))))))))
-
-    (when (null all-matches)
-      (dolist (buf (buffer-list))
-        (when (and (not (eq buf source-buf))
-                   (with-current-buffer buf (derived-mode-p 'org-mode)))
-          (with-current-buffer buf
-            (let ((case-fold-search t) (search-invisible t))
-              (let ((search-targets (delq nil (list block-name src-id heading-title))))
-                (dolist (target search-targets)
-                  (save-excursion
-                    (goto-char (point-min))
-                    (while (re-search-forward (regexp-quote target) nil t)
-                      (let* ((pos (line-beginning-position))
-                             (m-line (line-number-at-pos pos))
-                             (key (cons buf m-line)))
-                        (unless (member key seen-keys)
-                          (let ((is-open nil))
-                            (save-excursion
-                              (goto-char pos)
-                              (let ((limit (min (+ pos 500) (point-max))))
-                                (while (and (< (point) limit) (not is-open))
-                                  (if (and (fboundp 'org-transclusion-within-transclusion-p)
-                                           (org-transclusion-within-transclusion-p))
-                                      (setq is-open t)
-                                    (forward-char 1)))))
-                            
-                            (when is-open
-                              (push key seen-keys)
-                              (push (list buf pos) all-matches))))))))))))))
-
-    (unless all-matches
-      (user-error "Could not find any ACTIVE prose transclusion clones in open buffers!"))
-
-    (if (= (length all-matches) 1)
-
-        ;; -----------------------------------------------
-        ;; SINGLE MATCH: Teleport directly
-        ;; -----------------------------------------------
-        (let* ((match (car all-matches))
-               (target-buf (car match))
-               (target-pos (cadr match)))
-          (evil-set-jump)
-          (set-window-buffer current-win target-buf)
-          (select-window current-win)
-          (set-buffer target-buf)
-          
-          (goto-char target-pos)
-          
-          ;; ---> LANDING SPOT 4: KILL BEACON <---
-          (let ((landed-ov nil))
-            (dolist (ov (overlays-at target-pos))
-              (when (eq (overlay-get ov 'my-preview-state) 'beacon-hidden)
-                (setq landed-ov ov)))
-            (when landed-ov
-              (let ((inhibit-read-only t))
-                (save-excursion
-                  (goto-char target-pos)
-                  (end-of-line)
-                  (forward-char 1)
-                  (ignore-errors
-                    (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                               (org-transclusion-within-transclusion-p))
-                      (org-transclusion-remove)))
-                  (let ((was-modified (buffer-modified-p)))
-                    (ignore-errors (delete-region (1- (line-beginning-position)) (line-end-position)))
-                    (set-buffer-modified-p was-modified))))
-              (delete-overlay landed-ov)
-              (message "Beacon deactivated at landing site!")))
-          
-          (recenter)
-          (message "Teleported directly to single prose transclusion!"))
-
-      ;; MULTIPLE MATCHES: Spawn pristine prose picker
-      (let ((picker-buf (get-buffer-create "*Org Transclusions Prose*")))
-        (with-current-buffer picker-buf
-          (let ((inhibit-read-only t))
-            (erase-buffer)
-
-            (dolist (match all-matches)
-              (let* ((m-buf  (car match))
-                     (m-pos  (cadr match))
-                     (m-file (or (buffer-file-name m-buf) (buffer-name m-buf)))
-                     (m-line (with-current-buffer m-buf
-                               (save-excursion
-                                 (goto-char m-pos)
-                                 (line-number-at-pos))))
-                     (m-text (with-current-buffer m-buf
-                               (save-excursion
-                                 (goto-char m-pos)
-                                 (buffer-substring-no-properties
-                                  (line-beginning-position)
-                                  (line-end-position))))))
-                (insert (propertize m-file 'font-lock-face 'compilation-info)
-                        ":"
-                        (propertize (number-to-string m-line) 'font-lock-face 'compilation-line-number)
-                        ":"
-                        m-text "\n")))
-
-            (special-mode)
-
-            (setq-local my/org-transclusion-prose-jump-matches all-matches)
-            (setq-local my/org-transclusion-prose-jump-source-win current-win)
-
-            (evil-local-set-key 'normal (kbd "RET") 'my/org-transclusion-picker-jump-prose)
-            (evil-local-set-key 'motion (kbd "RET") 'my/org-transclusion-picker-jump-prose)
-            (local-set-key (kbd "RET") 'my/org-transclusion-picker-jump-prose)
-            (local-set-key (kbd "<return>") 'my/org-transclusion-picker-jump-prose)
-
-            (goto-char (point-min))))
-
-        (switch-to-buffer picker-buf)
-        (delete-other-windows)
-        (message "Multiple active prose transclusions found (%d). Press RET to teleport." (length all-matches))))))
-
-;; =====================================================================
-;; 5. THE PROSE HELPER (Picker)
-;; =====================================================================
-(defun my/org-transclusion-picker-jump-prose ()
-  "Jump to the prose transclusion selected in the picker."
-  (interactive)
-  (let* ((matches    (and (boundp 'my/org-transclusion-prose-jump-matches) 
-                          my/org-transclusion-prose-jump-matches))
-         (source-win (and (boundp 'my/org-transclusion-prose-jump-source-win) 
-                          my/org-transclusion-prose-jump-source-win))
-         (line-num   (line-number-at-pos))
-         (match      (nth (1- line-num) matches)))
-    
-    (unless match
-      (user-error "No match on this line!"))
-      
-    (let ((target-buf (car match))
-          (target-pos (cadr match)))
-      (unless (buffer-live-p target-buf)
-        (user-error "Target buffer is no longer live!"))
-        
-      (evil-set-jump)
-      
-      (let ((win (if (window-live-p source-win) source-win (selected-window))))
-        (set-window-buffer win target-buf)
-        (select-window win)
-        (set-buffer target-buf)
-        (goto-char target-pos)
-        
-        ;; ---> LANDING SPOT 5: KILL BEACON <---
-        (let ((landed-ov nil))
-          (dolist (ov (overlays-at target-pos))
-            (when (eq (overlay-get ov 'my-preview-state) 'beacon-hidden)
-              (setq landed-ov ov)))
-          (when landed-ov
-            (let ((inhibit-read-only t))
-              (save-excursion
-                (goto-char target-pos)
-                (end-of-line)
-                (forward-char 1)
-                (ignore-errors
-                  (when (and (fboundp 'org-transclusion-within-transclusion-p)
-                             (org-transclusion-within-transclusion-p))
-                    (org-transclusion-remove)))
-                (let ((was-modified (buffer-modified-p)))
-                  (ignore-errors (delete-region (1- (line-beginning-position)) (line-end-position)))
-                  (set-buffer-modified-p was-modified))))
-            (delete-overlay landed-ov)
-            (message "Beacon deactivated at landing site!")))
-            
-        (recenter)
-        (delete-other-windows)
-        (message "Teleported directly to prose transclusion!")))))
-
 ;; ==========================================
 ;; FULLSCREEN TAKEOVER JUMP LOGIC
 ;; ==========================================
 
-(defvar-local my/org-references-current-id nil
-  "Buffer-local variable storing the ID being searched in the references buffer.")
+(defvar-local my/org-references-current-id nil)
 
 (defun my/org-goto-link-column (&optional exact-id)
-  "Position cursor on the whitespace just before the link or transclude keyword.
-If EXACT-ID is provided, searches for that specific ID on the current line."
+  "Position cursor on the whitespace just before the link."
   (let ((limit (line-end-position))
         (found nil))
     (if exact-id
         (when (search-forward exact-id limit t)
           (goto-char (match-beginning 0))
-          ;; Step back to the beginning of the transclude keyword or link syntax
-          (when (re-search-backward "\\(#\\+transclude:\\|\\[\\[id:\\|id:\\)" (line-beginning-position) t)
+          (when (re-search-backward "\\(\\[\\[id:\\|id:\\)" (line-beginning-position) t)
             (goto-char (match-beginning 1)))
           (setq found t))
-      ;; Fallback generic search if exact-id is unknown
-      (when (re-search-forward "\\(#\\+transclude:\\|\\[\\[id:\\|id:\\)" limit t)
+      (when (re-search-forward "\\(\\[\\[id:\\|id:\\)" limit t)
         (goto-char (match-beginning 1))
         (setq found t)))
-    
     (when found
-      ;; If the previous character is a space or tab, step back onto it
       (when (and (> (point) (line-beginning-position))
                  (memq (char-before) '(?\s ?\t)))
         (backward-char)))))
@@ -1858,29 +1017,23 @@ If EXACT-ID is provided, searches for that specific ID on the current line."
   (let ((list-buf (current-buffer))
         (line-str (thing-at-point 'line t))
         (roam-dir (expand-file-name org-roam-directory))
-        (search-id my/org-references-current-id) ;; Grab the ID we saved earlier
+        (search-id my/org-references-current-id)
         target-file target-line)
-    
     (when (and line-str (string-match "^\\(.*?\\):\\([0-9]+\\):" line-str))
       (setq target-file (expand-file-name (match-string 1 line-str) roam-dir)
             target-line (string-to-number (match-string 2 line-str))))
-    
     (if (not target-file)
         (message "No reference found on this line.")
       (find-file target-file)
       (goto-char (point-min))
       (forward-line (1- target-line))
-      
-      ;; ---> NEW: Adjust the column! <---
       (my/org-goto-link-column search-id)
-      
       (recenter)
       (ignore-errors (kill-buffer list-buf))
       (message "Teleported successfully."))))
 
-(defun my/org-transclusion-backlinks ()
-  "Show notes transcluding this ID. 
-Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
+(defun my/org-find-backlinks ()
+  "Show notes linking to this ID."
   (interactive)
   (let ((id (org-id-get)))
     (if (not id)
@@ -1895,7 +1048,6 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
         (cond
          ((null lines)
           (message "No back-references found for ID: %s" id))
-         
          ((= (length lines) 1)
           (if (string-match "^\\(.*?\\):\\([0-9]+\\):" (car lines))
               (let ((file (expand-file-name (match-string 1 (car lines)) roam-dir))
@@ -1903,14 +1055,10 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
                 (find-file file)
                 (goto-char (point-min))
                 (forward-line (1- line))
-                
-                ;; Adjust the column for the single match
                 (my/org-goto-link-column id)
-                
                 (delete-other-windows)
                 (message "Jumped to the single reference."))
             (message "Could not parse output: %s" (car lines))))
-         
          (t
           (require 'compile)
           (let ((buf (get-buffer-create "*Org References*")))
@@ -1918,86 +1066,26 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
               (let ((inhibit-read-only t))
                 (erase-buffer)
                 (setq default-directory (file-name-as-directory roam-dir))
-                
                 (dolist (line lines)
-                  (let ((clean-line (if (string-prefix-p "./" line)
-                                        (substring line 2)
-                                      line)))
+                  (let ((clean-line (if (string-prefix-p "./" line) (substring line 2) line)))
                     (if (string-match "^\\(.*?\\):\\([0-9]+\\):\\(.*\\)$" clean-line)
                         (let ((f-name (match-string 1 clean-line))
                               (l-num  (match-string 2 clean-line))
                               (text   (match-string 3 clean-line)))
-                          (insert (propertize f-name 'font-lock-face 'compilation-info)
-                                  ":"
-                                  (propertize l-num 'font-lock-face 'compilation-line-number)
-                                  ":"
+                          (insert (propertize f-name 'font-lock-face 'compilation-info) ":"
+                                  (propertize l-num 'font-lock-face 'compilation-line-number) ":"
                                   text "\n"))
                       (insert clean-line "\n"))))
-                
-                ;; Initialize mode FIRST
                 (special-mode)
-                
-                ;; ---> FIX: Store the ID locally AFTER special-mode clears local variables <---
                 (setq-local my/org-references-current-id id)
-                
                 (evil-local-set-key 'normal (kbd "RET") 'my/org-references-jump-replace)
                 (evil-local-set-key 'motion (kbd "RET") 'my/org-references-jump-replace)
                 (local-set-key (kbd "RET") 'my/org-references-jump-replace)
                 (local-set-key (kbd "<return>") 'my/org-references-jump-replace)
-                
                 (goto-char (point-min))))
-            
             (switch-to-buffer buf)
             (delete-other-windows)
             (message "Showing %d references. Press RET to teleport." (length lines)))))))))
-
-;; UPDATED: Strict Exact-Link Jumping
-(defun my/org-transclusion-open-source-at-point ()
-  "Jump to source file from inside a transclusion, or exactly on an ID link."
-  (interactive)
-  (let* ((context (org-element-context))
-         (type (car context)))
-    (cond
-     ;; 1. Inside an active expanded transclusion block
-     ((org-transclusion-within-transclusion-p)
-      (org-transclusion-open-source))
-      
-     ;; 2. Cursor is EXACTLY on an ID link (no more guessing)
-     ((and (eq type 'link) (string= (org-element-property :type context) "id"))
-      (let ((id (org-element-property :path context)))
-        (org-id-goto id)
-        (message "Opened source: %s" id)))
-        
-     ;; 3. Scan the line if it has a `#+transclude:` keyword ANYWHERE
-     ((save-excursion
-        (beginning-of-line)
-        (re-search-forward "#\\+transclude:" (line-end-position) t))
-      (save-excursion
-        (beginning-of-line)
-        (if (re-search-forward "id:\\([0-9a-fA-F-]+\\)" (line-end-position) t)
-            (let ((id (match-string 1)))
-              (org-id-goto id)
-              (message "Opened transclude source: %s" id))
-          (message "No ID link found on this transclude line."))))
-          
-     ;; 4. Otherwise, do strictly nothing.
-     (t
-      (message "No ID link exactly under cursor. Move cursor onto the link!")))))
-
-(defun my/org-transclusion-remove-at-point ()
-  "Remove the transclusion — works whether
-   cursor is inline OR inside the expanded content."
-  (interactive)
-  (if (org-transclusion-within-transclusion-p)
-      (org-transclusion-remove)
-    (when (save-excursion
-            (beginning-of-line)
-            (re-search-forward "#\\+transclude:" (line-end-position) t))
-      (save-excursion
-        (beginning-of-line)
-        (re-search-forward "#\\+transclude:[ \t]*" (line-end-position) t)
-        (org-transclusion-remove))
-      (message "Transclusion removed"))))
 
 (use-package org-download
   :straight (:host github :repo "abo-abo/org-download")
@@ -2103,9 +1191,9 @@ Instantly jumps if exactly 1. Spawns a PRISTINE fullscreen list if 2+."
   (interactive)
   (org-store-link nil t))
 
-;;(evil-define-key 'normal 'global
-  ;;(kbd "<leader> n y") #'my/org-store-link-smart   ; 'y' for Yank link
-  ;;(kbd "<leader> n p") #'my/org-insert-link-clean)
+(evil-define-key 'normal 'org-mode-map
+  (kbd "SPC n y") #'my/org-store-link-smart   ; 'y' for Yank link
+  (kbd "SPC n p") #'my/org-insert-link-clean)
 
 ;; ORG MODE END
 
