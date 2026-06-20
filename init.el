@@ -1093,125 +1093,52 @@ If already inside the code body of a block, do nothing."
 ;; ==========================================
 
 (defun my/org-jump-drill-down ()
-  "Drill downward: Transclusion Clone -> Org Source Block -> Tangled Code.
+  "Drill downward: Org Source Block -> Tangled Code.
    If on pure prose / ID link, acts purely as `g d` and drops a history marker.
    Maintains exact row/col persistence with absolutely no window splitting."
   (interactive)
-  (cond
-   ;; =======================================================
-   ;; CASE 1: Inside Org-Transclusion -> Jump to Org Source
-   ;; =======================================================
-   ((and (derived-mode-p 'org-mode) 
-         (fboundp 'org-transclusion-within-transclusion-p)
-         (org-transclusion-within-transclusion-p))
+  (unless (derived-mode-p 'org-mode)
+    (user-error "Not in an Org buffer!"))
     
-    (if (not (org-in-src-block-p))
-        ;; -> PROSE DETECTED: Drill down natively
-        (progn
-          (org-transclusion-open-source)
-          (message "Opened source from transclusion prose!"))
-          
-      ;; -> SOURCE BLOCK DETECTED: Run exact math bubbling
-      (let* ((info (org-babel-get-src-block-info 'light))
-             (block-name (nth 4 info))
-             (current-col (current-column))
-             (current-line (line-number-at-pos))
-             (src-head-pos (org-babel-where-is-src-block-head))
-             (head-line (save-excursion 
-                          (goto-char src-head-pos) 
-                          (line-number-at-pos)))
-             (line-offset (- current-line head-line))
-             
-             (target-id (let ((search-invisible t))
-                          (save-excursion
-                            (goto-char src-head-pos)
-                            (when (re-search-backward "id:[0-9a-fA-F-]+" nil t)
-                              (beginning-of-line)
-                              (let ((found-id nil))
-                                (dolist (ov (overlays-in (line-beginning-position) (line-end-position)))
-                                  (when (overlay-get ov 'my-active-link-preview)
-                                    (let ((text (buffer-substring-no-properties (overlay-start ov) (overlay-end ov))))
-                                      (when (string-match "id:\\([0-9a-fA-F-]+\\)" text)
-                                        (setq found-id (match-string 1 text))))))
-                                (unless found-id
-                                  (when (re-search-forward "id:\\([0-9a-fA-F-]+\\)" (line-end-position) t)
-                                    (setq found-id (match-string 1))))
-                                found-id))))))
-             
-        (unless target-id
-          (user-error "Could not extract the #+transclude ID!"))
-             
+  (if (not (org-in-src-block-p))
+      
+      ;; -> PROSE DETECTED: Acts purely as `g d` + saves a history marker.
+      (call-interactively 'my/org-open-source-with-history)
+
+    ;; -> SOURCE BLOCK DETECTED: Run exact math bubbling to Tangled File
+    (let* ((info (org-babel-get-src-block-info 'light))
+           (tangle-target (cdr (assq :tangle (nth 2 info))))
+           (block-name (nth 4 info))
+           (current-col (current-column))
+           (current-line (line-number-at-pos))
+           (src-head-pos (org-babel-where-is-src-block-head))
+           (head-line (save-excursion 
+                        (goto-char src-head-pos) 
+                        (line-number-at-pos)))
+           (line-offset (- current-line head-line)))
+      
+      (unless tangle-target
+        (user-error "Not in a source block or :tangle is not set"))
+        
+      (let ((tangle-file (expand-file-name tangle-target)))
+        (unless (file-exists-p tangle-file)
+          (user-error "Tangled file '%s' does not exist." tangle-file))
+        
         (evil-set-jump)
-        (org-id-goto target-id)
+        (find-file tangle-file)
+        (goto-char (point-min))
         
         (if block-name
-            (let ((regex (format "^[ \t]*#\\+name:[ \t]*%s" (regexp-quote block-name))))
+            (let ((regex (format "\\[\\[file:.*::%s\\]\\[%s\\]\\]" block-name block-name)))
               (if (re-search-forward regex nil t)
-                  (re-search-forward "^[ \t]*#\\+begin_src" nil t)
-                (message "Could not find block '%s' under heading." block-name)))
-          (re-search-forward "^[ \t]*#\\+begin_src" nil t))
-          
-        (beginning-of-line)
-        (forward-line line-offset)
-        (move-to-column current-col)
-        (recenter)
-        (message "Teleported to Org Source! Zero splits."))))
-
-   ;; =======================================================
-   ;; CASE 2: In standard Org Source -> Jump to Tangled File OR ID Link
-   ;; =======================================================
-   ((derived-mode-p 'org-mode)
-    (if (not (org-in-src-block-p))
-        
-        ;; -> PROSE DETECTED: Wiped the beacon crap! 
-        ;; Now it acts purely as `g d` + saves a history marker.
-        (progn
-          ;; 1. Drop the GPS marker
-          (let ((m (point-marker)))
-            (unless (and my/org-link-history-array
-                         (eq (marker-buffer (car my/org-link-history-array)) (current-buffer))
-                         (= (marker-position (car my/org-link-history-array)) (point)))
-              (push m my/org-link-history-array)))
-          
-          ;; 2. Execute standard `g d` behavior
-          (call-interactively 'my/org-transclusion-open-source-at-point))
-
-      ;; -> SOURCE BLOCK DETECTED: Run exact math bubbling to Tangled File
-      (let* ((info (org-babel-get-src-block-info 'light))
-             (tangle-target (cdr (assq :tangle (nth 2 info))))
-             (block-name (nth 4 info))
-             (current-col (current-column))
-             (current-line (line-number-at-pos))
-             (src-head-pos (org-babel-where-is-src-block-head))
-             (head-line (save-excursion 
-                          (goto-char src-head-pos) 
-                          (line-number-at-pos)))
-             (line-offset (- current-line head-line)))
-        
-        (unless tangle-target
-          (user-error "Not in a source block or :tangle is not set"))
-          
-        (let ((tangle-file (expand-file-name tangle-target)))
-          (unless (file-exists-p tangle-file)
-            (user-error "Tangled file '%s' does not exist." tangle-file))
-          
-          (evil-set-jump)
-          (find-file tangle-file)
-          (goto-char (point-min))
-          
-          (if block-name
-              (let ((regex (format "\\[\\[file:.*::%s\\]\\[%s\\]\\]" block-name block-name)))
-                (if (re-search-forward regex nil t)
-                    (progn
-                      (beginning-of-line)         
-                      (forward-line line-offset)
-                      (move-to-column current-col)
-                      (recenter)
-                      (message "Teleported to Tangled Code! Zero splits."))                 
-                  (message "Could not find block '%s' in tangled file." block-name)))
-            (message "Block has no #+name."))))))
-
-   (t (user-error "Not in an Org block or Transclusion!"))))
+                  (progn
+                    (beginning-of-line)         
+                    (forward-line line-offset)
+                    (move-to-column current-col)
+                    (recenter)
+                    (message "Teleported to Tangled Code! Zero splits."))                 
+                (message "Could not find block '%s' in tangled file." block-name)))
+          (message "Block has no #+name."))))))
 
 (evil-define-key 'normal 'global (kbd "g m") 'my/org-jump-drill-down)
 
