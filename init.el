@@ -2113,22 +2113,16 @@ _R_: Find All References   _h_: Show Call Hierarchy
   
   :config
   (with-eval-after-load 'evil
-    ;; 1. Global bindings for standard files
-    (define-key evil-motion-state-map (kbd "g k") #'evil-avy-goto-char-timer)
-    (define-key evil-normal-state-map (kbd "g k") #'evil-avy-goto-char-timer)
+    ;; 1. Global bindings for standard files (normal state ONLY)
+    (evil-define-key 'normal 'global (kbd "SPC f k") #'evil-avy-goto-char-timer)
     
-    ;; 2. Create a reusable "bulletproof" function
-    (defun my/force-avy-gk ()
-      "Force \"g k\" to trigger avy, bypassing stubborn major modes."
-      (evil-local-set-key 'normal (kbd "g k") #'evil-avy-goto-char-timer)
-      (evil-local-set-key 'motion (kbd "g k") #'evil-avy-goto-char-timer))
-    
-    ;; 3. Apply it to any stubborn modes (add more here in the future if needed)
-    (add-hook 'org-mode-hook #'my/force-avy-gk)
-    (add-hook 'grep-mode-hook #'my/force-avy-gk)
-    (add-hook 'compilation-mode-hook #'my/force-avy-gk)
-    
-    ))
+    ;; 2. Force it into stubborn modes directly
+    (with-eval-after-load 'org
+      (evil-define-key 'normal org-mode-map (kbd "SPC f k") #'evil-avy-goto-char-timer))
+    (with-eval-after-load 'grep
+      (evil-define-key 'normal grep-mode-map (kbd "SPC f k") #'evil-avy-goto-char-timer))
+    (with-eval-after-load 'compile
+      (evil-define-key 'normal compilation-mode-map (kbd "SPC f k") #'evil-avy-goto-char-timer))))
 
 ;; =========================================
 ;; make copy pasting xclip compliant
