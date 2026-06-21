@@ -1852,15 +1852,7 @@ _R_: Find All References   _h_: Show Call Hierarchy
   ;; 1. Disable gg and G on the mode map level
   (evil-define-key '(normal motion) pdf-view-mode-map
     (kbd "G")   'ignore
-    (kbd "gg")  'ignore)
-  
-  ;; 2. C-o is stubborn and often hijacked by Evil's global jump list 
-  ;; or evil-collection. We must forcefully disable it at the absolute 
-  ;; local buffer level the moment the PDF opens.
-  (add-hook 'pdf-view-mode-hook
-            (lambda ()
-              (evil-local-set-key 'normal (kbd "C-o") 'ignore)
-              (evil-local-set-key 'motion (kbd "C-o") 'ignore))))
+    (kbd "gg")  'ignore))
 
 ;; ==========================================
 ;; Make Emacs Auto-Saves act EXACTLY like Vim Swap Files
@@ -2587,8 +2579,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 
 ;; 4. Enable it (You can now toggle it on and off from the Menu Bar!)
 (tab-bar-mode 0)
-
-(global-set-key (kbd "C-o") #'xref-go-back)
 
 ;; Notice it is "<escape>", not "ESC". 
 ;; <escape> represents the physical key in GUI environments.
