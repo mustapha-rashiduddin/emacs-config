@@ -1219,13 +1219,15 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 _y_: Copy/Store Link     _s_: Toggle Link Code
 _p_: Paste/Insert Link   _e_: Edit/Rename Link
 _u_: Generate/Get ID     _o_: Open Link
+                       _b_: Backtrack
 "
   ("y" my/org-store-link-smart)         ;; Acts like your 'SPC n y'
   ("p" my/org-insert-link-clean)        ;; Acts like your 'SPC n p'
   ("s" my/org-toggle-link-under-cursor) ;; Acts like your 'g s'
   ("e" org-insert-link)                 ;; Acts like 'C-c C-l'
   ("u" org-id-get-create)               ;; Generates ID for heading
-  ("o" org-open-at-point)               ;; Standard open link
+  ("o" my/org-jump-drill-down)          ;; Standard open link
+  ("b" my/org-jump-surface-up)          ;; surface up
   ("<escape>" nil "cancel" :color blue)
   ("q" nil "cancel" :color blue))
 
