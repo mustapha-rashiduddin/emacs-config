@@ -985,7 +985,19 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
    ((derived-mode-p 'org-mode)
     (my/org-pop-link-history))))
 
-(evil-define-key 'normal 'global (kbd "g c") 'my/org-jump-surface-up)
+;; 1. Global bindings for standard tangled code files
+(with-eval-after-load 'evil
+  (define-key evil-motion-state-map (kbd "g k") 'my/org-jump-surface-up)
+  (define-key evil-normal-state-map (kbd "g k") 'my/org-jump-surface-up))
+
+;; 2. The exact bulletproof hook that worked for Avy
+(defun my/force-gk-surface-up ()
+  "Force 'g k' to trigger surface up, bypassing evil-org."
+  (evil-local-set-key 'normal (kbd "g k") 'my/org-jump-surface-up)
+  (evil-local-set-key 'motion (kbd "g k") 'my/org-jump-surface-up))
+
+;; 3. Attach it to Org mode so it overrides everything locally
+(add-hook 'org-mode-hook #'my/force-gk-surface-up)
 
 ;; ==========================================
 ;; FULLSCREEN TAKEOVER JUMP LOGIC
@@ -2113,16 +2125,20 @@ _R_: Find All References   _h_: Show Call Hierarchy
   
   :config
   (with-eval-after-load 'evil
-    ;; 1. Global bindings for standard files (normal state ONLY)
-    (evil-define-key 'normal 'global (kbd "SPC f k") #'evil-avy-goto-char-timer)
+    ;; 1. Global bindings for standard files
+    (define-key evil-motion-state-map (kbd "g i") #'evil-avy-goto-char-timer)
+    (define-key evil-normal-state-map (kbd "g i") #'evil-avy-goto-char-timer)
     
-    ;; 2. Force it into stubborn modes directly
-    (with-eval-after-load 'org
-      (evil-define-key 'normal org-mode-map (kbd "SPC f k") #'evil-avy-goto-char-timer))
-    (with-eval-after-load 'grep
-      (evil-define-key 'normal grep-mode-map (kbd "SPC f k") #'evil-avy-goto-char-timer))
-    (with-eval-after-load 'compile
-      (evil-define-key 'normal compilation-mode-map (kbd "SPC f k") #'evil-avy-goto-char-timer))))
+    ;; 2. Create a reusable "bulletproof" function
+    (defun my/force-avy-gi ()
+      "Force \"g i\" to trigger avy, bypassing stubborn major modes."
+      (evil-local-set-key 'normal (kbd "g i") #'evil-avy-goto-char-timer)
+      (evil-local-set-key 'motion (kbd "g i") #'evil-avy-goto-char-timer))
+    
+    ;; 3. Apply it to any stubborn modes
+    (add-hook 'org-mode-hook #'my/force-avy-gi)
+    (add-hook 'grep-mode-hook #'my/force-avy-gi)
+    (add-hook 'compilation-mode-hook #'my/force-avy-gi)))
 
 ;; =========================================
 ;; make copy pasting xclip compliant
@@ -2613,26 +2629,32 @@ Format: \\='((mode1 mode2) . custom-start-function)")
       (setq tmux-escape-is-intercepted should-intercept))))
 
 (defun vim ()
-  "Toggles Evil mode, updates the boolean, syncs Tmux, and toggles CUA mode."
+  "Enables Evil mode, disables CUA mode, updates state, and syncs Tmux."
   (interactive)
   
-  ;; Toggle Evil and CUA mode together
-  (if evil-mode
-      (progn
-        (evil-mode -1)     ;; Turn Vim OFF
-        (cua-mode 1))      ;; Turn CUA ON (Ctrl-V = Paste)
-    (progn
-      (evil-mode 1)        ;; Turn Vim ON
-      (cua-mode -1)))      ;; Turn CUA OFF (Ctrl-V = Visual Block)
+  (evil-mode 1)          ;; Turn Vim ON
+  (cua-mode -1)          ;; Turn CUA OFF (Ctrl-V = Visual Block)
   
-  ;; Save the state 
-  (setq outside-vim-mode (not evil-mode))
+  ;; Save the state (Vim is ON, so outside-vim-mode is nil)
+  (setq outside-vim-mode nil)
   
   ;; Force a sync with Tmux and print message
   (sync-tmux-escape)
-  (message "VIM %s (CUA %s)" 
-           (if outside-vim-mode "OFF" "ON")
-           (if outside-vim-mode "ON" "OFF")))
+  (message "VIM ON (CUA OFF)"))
+
+(defun cua ()
+  "Enables CUA mode, disables Evil mode, updates state, and syncs Tmux."
+  (interactive)
+  
+  (evil-mode -1)         ;; Turn Vim OFF
+  (cua-mode 1)           ;; Turn CUA ON (Ctrl-V = Paste)
+  
+  ;; Save the state (Vim is OFF, so outside-vim-mode is true)
+  (setq outside-vim-mode t)
+  
+  ;; Force a sync with Tmux and print message
+  (sync-tmux-escape)
+  (message "VIM OFF (CUA ON)"))
 
 ;; ------------------------------------------
 ;; THE MAGIC HOOKS
