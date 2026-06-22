@@ -446,6 +446,9 @@
 ;; ==========================================
 (require 'org)
 
+;; 🚀 THE FIX: Allow Shift + Arrow keys to highlight text in Org!
+(setq org-support-shift-select 'always)
+
 (use-package evil-org
   :straight (:host github :repo "Somelauw/evil-org-mode")
   :hook (org-mode . evil-org-mode)
