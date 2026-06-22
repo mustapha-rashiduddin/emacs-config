@@ -1244,6 +1244,10 @@ _u_: Generate/Get ID     _o_: Open Link
   (define-key org-mode-map (kbd "<down-mouse-3>") 'ignore)
   (define-key org-mode-map (kbd "<mouse-3>") 'my/org-right-click-menu)
   
+  ;; 🚀 THE FIX: Intercept CUA's LSP menu specifically inside Org mode!
+  ;; No matter what key CUA tries to use, Org will forcefully route it here.
+  (define-key org-mode-map [remap my/right-click-context-menu] 'my/org-right-click-menu)
+  
   ;; 2. Stop Org's hidden text-property links from hijacking the click
   (when (boundp 'org-mouse-map)
     (define-key org-mouse-map (kbd "<down-mouse-3>") 'ignore)
