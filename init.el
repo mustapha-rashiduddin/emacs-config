@@ -2534,6 +2534,47 @@ Format: \\='((mode1 mode2) . custom-start-function)")
   (tab-bar-mode 'toggle))
 
 ;; =========================================
+;; Top Menu Bar: Org Roam
+;; =========================================
+
+;; 1. Create a dedicated keymap for the Roam menu
+(defvar my-org-roam-menu-map (make-sparse-keymap "Roam"))
+
+;; 2. Add your custom functions as buttons 
+;; (Note: We define them bottom-to-top so they appear top-to-bottom in the GUI)
+(define-key my-org-roam-menu-map [roam-ui]
+  '(menu-item "Open Roam UI (Graph)" org-roam-ui-mode))
+
+(define-key my-org-roam-menu-map [roam-sync]
+  '(menu-item "Sync Database" org-roam-db-sync))
+
+(define-key my-org-roam-menu-map [roam-delete]
+  '(menu-item "Delete Current Node" my/org-roam-delete-current-node))
+
+(define-key my-org-roam-menu-map [sep-2] '(menu-item "--"))
+
+(define-key my-org-roam-menu-map [roam-toggle]
+  '(menu-item "Toggle Backlinks Panel" org-roam-buffer-toggle))
+
+(define-key my-org-roam-menu-map [roam-insert]
+  '(menu-item "Insert Node Link" org-roam-node-insert))
+
+(define-key my-org-roam-menu-map [sep-1] '(menu-item "--"))
+
+(define-key my-org-roam-menu-map [roam-capture]
+  '(menu-item "Capture Inbox Note" org-capture))
+
+(define-key my-org-roam-menu-map [roam-find]
+  '(menu-item "Find / Create Node" my/org-roam-node-find-ignore-case))
+
+;; 3. Attach it to the global menu bar
+(define-key global-map [menu-bar my-org-roam-menu]
+  (cons "Roam" my-org-roam-menu-map))
+
+;; 4. Push it to the far right of the menu bar, right next to your Jump and Debug menus!
+(add-to-list 'menu-bar-final-items 'my-org-roam-menu t)
+
+;; =========================================
 ;; Top Menu Bar (Debug Toggle at the end)
 ;; =========================================
 
