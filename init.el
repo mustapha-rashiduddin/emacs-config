@@ -992,7 +992,7 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 
 ;; 2. The exact bulletproof hook that worked for Avy
 (defun my/force-gk-surface-up ()
-  "Force 'g k' to trigger surface up, bypassing evil-org."
+  "Force `g k' to trigger surface up, bypassing evil-org."
   (evil-local-set-key 'normal (kbd "g k") 'my/org-jump-surface-up)
   (evil-local-set-key 'motion (kbd "g k") 'my/org-jump-surface-up))
 
@@ -1206,6 +1206,57 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 (evil-define-key 'normal 'org-mode-map
   (kbd "SPC n y") #'my/org-store-link-smart   ; 'y' for Yank link
   (kbd "SPC n p") #'my/org-insert-link-clean)
+
+;; ==========================================
+;; ORG LINK HYDRA (Right-Click Menu)
+;; ==========================================
+(require 'hydra)
+
+(defhydra hydra-org-links (:color blue :hint nil)
+  "
+^ORG LINKS & IDS^
+^^^^^^^^-----------------------------------------
+_y_: Copy/Store Link     _s_: Toggle Link Code
+_p_: Paste/Insert Link   _e_: Edit/Rename Link
+_u_: Generate/Get ID     _o_: Open Link
+"
+  ("y" my/org-store-link-smart)         ;; Acts like your 'SPC n y'
+  ("p" my/org-insert-link-clean)        ;; Acts like your 'SPC n p'
+  ("s" my/org-toggle-link-under-cursor) ;; Acts like your 'g s'
+  ("e" org-insert-link)                 ;; Acts like 'C-c C-l'
+  ("u" org-id-get-create)               ;; Generates ID for heading
+  ("o" org-open-at-point)               ;; Standard open link
+  ("<escape>" nil "cancel" :color blue)
+  ("q" nil "cancel" :color blue))
+
+;; MAKE SURE THIS HAS (interactive "e") OR IT WILL THROW THE 'COMMANDP' ERROR
+(defun my/org-right-click-menu (event)
+  "Move cursor to the clicked location and open the Org Link context menu."
+  (interactive "e")
+  (mouse-set-point event)
+  (with-selected-window (posn-window (event-start event))
+    (hydra-org-links/body)))
+
+;; 1. Standard Org Mode Overrides
+(with-eval-after-load 'org
+  (define-key org-mode-map (kbd "<down-mouse-3>") 'ignore)
+  (define-key org-mode-map (kbd "<mouse-3>") 'my/org-right-click-menu)
+  
+  ;; 2. Stop Org's hidden text-property links from hijacking the click
+  (when (boundp 'org-mouse-map)
+    (define-key org-mouse-map (kbd "<down-mouse-3>") 'ignore)
+    (define-key org-mouse-map (kbd "<mouse-3>") 'my/org-right-click-menu))
+    
+  (when (boundp 'org-link-keymap)
+    (define-key org-link-keymap (kbd "<down-mouse-3>") 'ignore)
+    (define-key org-link-keymap (kbd "<mouse-3>") 'my/org-right-click-menu)))
+
+;; 3. Evil Mode Overrides
+(with-eval-after-load 'evil
+  (evil-define-key '(normal motion insert visual) org-mode-map 
+    (kbd "<down-mouse-3>") 'ignore)
+  (evil-define-key '(normal motion insert visual) org-mode-map 
+    (kbd "<mouse-3>") 'my/org-right-click-menu))
 
 ;; ORG MODE END
 
@@ -1707,6 +1758,7 @@ _d_: Go to Definition      _r_: Rename Symbol
 _D_: Go to Declaration     _a_: Code Actions (Quick Fix)
 _t_: Go to Type Def        _f_: Format Buffer/Region
 _R_: Find All References   _h_: Show Call Hierarchy
+_o_: Convert to Org (org-it)
 "
   ;; Navigation
   ("d" xref-find-definitions)
@@ -1719,6 +1771,7 @@ _R_: Find All References   _h_: Show Call Hierarchy
   ("a" eglot-code-actions)
   ("f" eglot-format)
   ("h" eglot-show-call-hierarchy)
+  ("o" my/org-it)
   
   ;; Cancel
   ("<escape>" nil "cancel" :color blue)
