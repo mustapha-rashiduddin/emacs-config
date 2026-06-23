@@ -130,10 +130,13 @@
 ;; We load this EARLY because later functions (like Eshell) rely on variables
 ;; defined inside my-speed-dial.el!
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(require 'my-speed-dial)
+
+;; 🚀 THE FIX: Use 'load' instead of 'require' so this file 
+;; is forcefully re-evaluated every time you press SPC h r r
+(load "my-speed-dial" nil t)
 
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
-(require 'tmux-mouse-patch)
+(load "tmux-mouse-patch" nil t)
 
 ;; ==========================================
 ;; 4. General UI & System Settings
