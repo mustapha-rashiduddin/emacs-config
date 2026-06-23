@@ -410,7 +410,6 @@
   "Compile all config files to Machine Code (if supported)."
   (interactive)
   (let ((speed-dial (expand-file-name "lisp/my-speed-dial.el" user-emacs-directory))
-        (theme      (expand-file-name "local-theme.el" user-emacs-directory))
         (init       (expand-file-name "init.el" user-emacs-directory))
         (use-native (and (fboundp 'native-comp-available-p) 
                          (native-comp-available-p))))
@@ -425,13 +424,7 @@
           (native-compile speed-dial)
         (byte-compile-file speed-dial)))
 
-    ;; 2. Compile local-theme.el
-    (when (file-exists-p theme)
-      (if use-native
-          (native-compile theme)
-        (byte-compile-file theme)))
-      
-    ;; 3. Compile init.el
+    ;; 2. Compile init.el
     (when (file-exists-p init)
       (if use-native
           (native-compile init)
@@ -1406,14 +1399,31 @@ _u_: Generate/Get ID     _o_: Open Link
 (use-package ef-themes
   :straight (:host github :repo "protesilaos/ef-themes")
   :config
-  ;; Load our local theme file
-  (let ((theme-file (expand-file-name "local-theme.el" user-emacs-directory)))
-    (if (file-exists-p theme-file)
-        (load theme-file)
-      ;; Ultimate fallback just in case the file gets deleted somehow
-      (load-theme 'ef-orange t)))
+  
+  ;; ---------------------------------------------------------
+  ;; 1. PERSISTENCE: Save theme to the SQLite Database
+  ;; ---------------------------------------------------------
+  (defun my/persist-theme-to-db (theme &rest _)
+    "Save the loaded theme to the database so it remembers on next boot."
+    (when (and (boundp 'my/sd-db) my/sd-db (string-prefix-p "ef-" (symbol-name theme)))
+      (sqlite-execute my/sd-db "INSERT OR REPLACE INTO state (key, value) VALUES ('ef_theme', ?)"
+                      (list (symbol-name theme)))))
 
-  ;; 1. Define custom completion specifically for ef-themes
+  (advice-add 'load-theme :after #'my/persist-theme-to-db)
+
+  ;; ---------------------------------------------------------
+  ;; 2. STARTUP: Load the saved theme
+  ;; ---------------------------------------------------------
+  (let ((persisted-theme (when (and (boundp 'my/sd-db) my/sd-db)
+                           (caar (sqlite-select my/sd-db "SELECT value FROM state WHERE key='ef_theme'")))))
+    (if persisted-theme
+        (load-theme (intern persisted-theme) t)
+      ;; Fallback if the database is empty
+      (load-theme 'ef-light t)))
+
+  ;; ---------------------------------------------------------
+  ;; 3. EVIL EX COMMAND (:colo)
+  ;; ---------------------------------------------------------
   (evil-ex-define-argument-type ef-theme-name
     "Completion for ef-themes."
     :collection (lambda (string predicate action)
@@ -1424,28 +1434,20 @@ _u_: Generate/Get ID     _o_: Open Link
                                         (custom-available-themes))))
                     (complete-with-action action themes string predicate))))
 
-  ;; 2. Properly define the Evil command
   (evil-define-command evil-ef-theme-select (theme)
     "Select an ef-theme with Evil Ex command."
     (interactive "<a>")
     (let ((clean-theme (when theme (string-trim theme))))
       (if (and clean-theme (not (string-empty-p clean-theme)))
           (progn
-            ;; Disable current themes to prevent color bleeding
             (mapc #'disable-theme custom-enabled-themes)
-            ;; Load the requested theme cleanly
             (load-theme (intern clean-theme) t))
-        ;; Fallback: if you just type `:colo` and hit Enter
         (call-interactively 'ef-themes-select))))
 
-  ;; 3. Tell Evil Ex to use our custom completion list for this command
   (evil-set-command-property 'evil-ef-theme-select :ex-arg 'ef-theme-name)
-
-  ;; 4. Bind the command to Vim's standard :colo and :colorscheme
   (evil-ex-define-cmd "colo" 'evil-ef-theme-select)
   (evil-ex-define-cmd "colorscheme" 'evil-ef-theme-select)
 
-  ;; 5. Toggle keybind
   (evil-define-key 'normal 'global
     (kbd "SPC t t") 'ef-themes-toggle))
 
