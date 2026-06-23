@@ -2190,12 +2190,16 @@ _o_: Convert to Org (org-it)
     ;; 1. Global bindings for standard files
     (define-key evil-motion-state-map (kbd "g i") #'evil-avy-goto-char-timer)
     (define-key evil-normal-state-map (kbd "g i") #'evil-avy-goto-char-timer)
+    ;; 🚨 ADD THIS: Explicitly teach Visual Mode what g i means
+    (define-key evil-visual-state-map (kbd "g i") #'evil-avy-goto-char-timer)
     
     ;; 2. Create a reusable "bulletproof" function
     (defun my/force-avy-gi ()
       "Force \"g i\" to trigger avy, bypassing stubborn major modes."
       (evil-local-set-key 'normal (kbd "g i") #'evil-avy-goto-char-timer)
-      (evil-local-set-key 'motion (kbd "g i") #'evil-avy-goto-char-timer))
+      (evil-local-set-key 'motion (kbd "g i") #'evil-avy-goto-char-timer)
+      ;; 🚨 ADD THIS: Bulletproof the Visual state too
+      (evil-local-set-key 'visual (kbd "g i") #'evil-avy-goto-char-timer))
     
     ;; 3. Apply it to any stubborn modes
     (add-hook 'org-mode-hook #'my/force-avy-gi)
