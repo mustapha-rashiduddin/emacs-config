@@ -2758,6 +2758,10 @@ Format: \\='((mode1 mode2) . custom-start-function)")
   ;; Save the state (Vim is ON, so outside-vim-mode is nil)
   (setq outside-vim-mode nil)
   
+  ;; PERSIST TO DATABASE
+  (when (and (boundp 'my/sd-db) my/sd-db)
+    (sqlite-execute my/sd-db "INSERT OR REPLACE INTO state (key, value) VALUES ('vim_mode', 'true')"))
+  
   ;; Force a sync with Tmux and print message
   (sync-tmux-escape)
   (message "VIM ON (CUA OFF)"))
@@ -2772,6 +2776,10 @@ Format: \\='((mode1 mode2) . custom-start-function)")
   ;; Save the state (Vim is OFF, so outside-vim-mode is true)
   (setq outside-vim-mode t)
   
+  ;; PERSIST TO DATABASE
+  (when (and (boundp 'my/sd-db) my/sd-db)
+    (sqlite-execute my/sd-db "INSERT OR REPLACE INTO state (key, value) VALUES ('vim_mode', 'false')"))
+  
   ;; Force a sync with Tmux and print message
   (sync-tmux-escape)
   (message "VIM OFF (CUA ON)"))
@@ -2780,13 +2788,25 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; THE MAGIC HOOKS
 ;; ------------------------------------------
 
-;; ADD THIS: Dynamically check Evil's state at startup before syncing
+;; Dynamically check the database for your last preference at startup
 (add-hook 'emacs-startup-hook 
           (lambda ()
-            ;; 1. Check if evil-mode is actually on or off
-            (setq outside-vim-mode (not (bound-and-true-p evil-mode)))
-            ;; 2. Now safely sync with Tmux based on the correct state
-            (sync-tmux-escape)))
+            ;; 1. Check if the user previously saved a mode preference in the database
+            (let ((persisted-mode (when (and (boundp 'my/sd-db) my/sd-db)
+                                    (caar (sqlite-select my/sd-db "SELECT value FROM state WHERE key='vim_mode'")))))
+              (cond
+               ;; If the database says Vim was ON last time
+               ((equal persisted-mode "true") 
+                (let ((inhibit-message t)) (vim)))
+               
+               ;; If the database says CUA was ON last time
+               ((equal persisted-mode "false") 
+                (let ((inhibit-message t)) (cua)))
+               
+               ;; Fallback (if the database is fresh and nothing is saved yet)
+               (t
+                (setq outside-vim-mode (not (bound-and-true-p evil-mode)))
+                (sync-tmux-escape))))))
 
 ;; Tell Emacs to run our sync function automatically every time 
 ;; you change tabs, buffers, or split windows!
