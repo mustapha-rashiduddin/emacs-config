@@ -2185,23 +2185,33 @@ _o_: Convert to Org (org-it)
   (avy-timeout-seconds 0.1)
   (avy-keys '(?a ?s ?d ?f ?j ?k ?l ?\;))
   
+  ;; 1. Explicitly enforce the sequence of faces Avy uses
+  (avy-lead-faces '(avy-lead-face
+                    avy-lead-face-0
+                    avy-lead-face-1
+                    avy-lead-face-2))
+  
   :config
+  ;; 2. FORCE the colors (this overrides stubborn themes that ignore :custom-face)
+  (set-face-attribute 'avy-lead-face   nil :foreground "white" :background "#e52b50" :weight 'bold) ; 1st letter (Red)
+  (set-face-attribute 'avy-lead-face-0 nil :foreground "white" :background "#1d4ed8" :weight 'bold) ; 2nd letter (Blue)
+  (set-face-attribute 'avy-lead-face-1 nil :foreground "black" :background "#eab308" :weight 'bold) ; 3rd letter (Yellow)
+  (set-face-attribute 'avy-lead-face-2 nil :foreground "white" :background "#9333ea" :weight 'bold) ; 4th letter (Purple)
+  
   (with-eval-after-load 'evil
-    ;; 1. Global bindings for standard files
+    ;; Global bindings for standard files
     (define-key evil-motion-state-map (kbd "g i") #'evil-avy-goto-char-timer)
     (define-key evil-normal-state-map (kbd "g i") #'evil-avy-goto-char-timer)
-    ;; 🚨 ADD THIS: Explicitly teach Visual Mode what g i means
     (define-key evil-visual-state-map (kbd "g i") #'evil-avy-goto-char-timer)
     
-    ;; 2. Create a reusable "bulletproof" function
+    ;; Create a reusable "bulletproof" function
     (defun my/force-avy-gi ()
       "Force \"g i\" to trigger avy, bypassing stubborn major modes."
       (evil-local-set-key 'normal (kbd "g i") #'evil-avy-goto-char-timer)
       (evil-local-set-key 'motion (kbd "g i") #'evil-avy-goto-char-timer)
-      ;; 🚨 ADD THIS: Bulletproof the Visual state too
       (evil-local-set-key 'visual (kbd "g i") #'evil-avy-goto-char-timer))
     
-    ;; 3. Apply it to any stubborn modes
+    ;; Apply it to any stubborn modes
     (add-hook 'org-mode-hook #'my/force-avy-gi)
     (add-hook 'grep-mode-hook #'my/force-avy-gi)
     (add-hook 'compilation-mode-hook #'my/force-avy-gi)))
