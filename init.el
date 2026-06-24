@@ -1474,10 +1474,8 @@ _u_: Generate/Get ID     _o_: Open Link
                       :button (:radio . (eq (car-safe custom-enabled-themes) ',theme-sym)))))))
 
   (define-key global-map [menu-bar my-theme-menu]
-    (cons "Themes" my-theme-menu-map))
+    (cons "Themes" my-theme-menu-map)))
     
-  (add-to-list 'menu-bar-final-items 'my-theme-menu t))
-
 ;; ==========================================
 ;; 9. Elfeed & Elfeed-Org
 ;; ==========================================
@@ -2617,9 +2615,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (define-key global-map [menu-bar my-org-roam-menu]
   (cons "Roam" my-org-roam-menu-map))
 
-;; 4. Push it to the far right of the menu bar, right next to your Jump and Debug menus!
-(add-to-list 'menu-bar-final-items 'my-org-roam-menu t)
-
 ;; =========================================
 ;; Top Menu Bar (Debug Toggle at the end)
 ;; =========================================
@@ -2639,11 +2634,6 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; 3. Attach it to the global menu bar under a specific, trackable key
 (define-key global-map [menu-bar my-debug-menu]
   (cons "Debug" my-debug-menu-map))
-
-;; 4. Force Emacs to push these menus past 'Help' to the absolute right edge!
-;; (Using add-to-list prevents duplicates if you ever reload your config)
-(add-to-list 'menu-bar-final-items 'jump t)
-(add-to-list 'menu-bar-final-items 'my-debug-menu t)
 
 ;; =========================================
 ;; Top Menu Bar: Editor Mode (Vim/CUA)
@@ -2665,8 +2655,24 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (define-key global-map [menu-bar my-editor-menu]
   (cons "Editor" my-editor-menu-map))
 
-;; 4. Push it to the far right alongside the others
-(add-to-list 'menu-bar-final-items 'my-editor-menu t)
+;; =========================================
+;; Top Menu Bar: Master Ordering
+;; =========================================
+
+;; 1. Define a dummy menu item to act as the "|" visual separator 
+;; (We use an empty interactive lambda so clicking it safely does nothing)
+(define-key global-map [menu-bar my-menu-separator] 
+  '(menu-item "|" (lambda () (interactive))))
+
+;; 2. Force the EXACT order of the final menus on the Right Side of the screen.
+;; By hardcoding the list, we bypass the file loading order entirely!
+(setq menu-bar-final-items '(help-menu
+                             my-org-roam-menu
+                             jump
+                             my-debug-menu
+                             my-menu-separator
+                             my-theme-menu
+                             my-editor-menu))
 
 ;; ---------------------------------------------------------------------------------
 (defun my-force-menu ()
