@@ -385,14 +385,14 @@
 ;; Relative Line Numbers
 ;; ==========================================
 
-;;(setq display-line-numbers-type 'relative)
-;;(global-display-line-numbers-mode 1)
-;;
-;;(dolist (mode '(eshell-mode-hook
-;;                eat-mode-hook
-;;                term-mode-hook
-;;                shell-mode-hook))
-;;  (add-hook mode (lambda () (display-line-numbers-mode 0))))
+(setq display-line-numbers-type 'relative)
+(global-display-line-numbers-mode 1)
+
+(dolist (mode '(eshell-mode-hook
+                eat-mode-hook
+                term-mode-hook
+                shell-mode-hook))
+  (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
 ;; ==========================================
 ;; Reload / Compile Config Functions
