@@ -1195,16 +1195,65 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
       (insert (format "[[%s][%s]]" raw-link desc)))))
 
 ;; ==========================================
-;; Smart SPC n y on headings → stores clean [[id:UUID][Heading Name]]
+;; Smart Yank (Copy Link) - The Strict Heading Enforcer
 ;; ==========================================
 (defun my/org-store-link-smart ()
-  "Store link as [[id:UUID][Heading Text]] when cursor is on a heading."
+  "Intelligently store an Org link for a specific block.
+  Requires a strict `* ` heading directly above the block. If missing, it prompts."
   (interactive)
-  (org-store-link nil t))
+  (let ((has-direct-heading nil)
+        (heading-pos nil))
+    (save-excursion
+      (if (org-at-heading-p)
+          (setq has-direct-heading t
+                heading-pos (point))
+        
+        ;; 1. Go to the absolute top of the current block (including #+name:)
+        (org-backward-element)
+        (let ((top-of-block (point)))
+          
+          ;; 2. Look at the lines immediately above it
+          (forward-line -1)
+          
+          ;; 3. Skip up over blank lines or broken property drawers just in case
+          (while (and (not (bobp))
+                      (or (looking-at-p "^[ \t]*$")
+                          (looking-at-p "^[ \t]*:END:")
+                          (looking-at-p "^[ \t]*:ID:")
+                          (looking-at-p "^[ \t]*:PROPERTIES:")))
+            (forward-line -1))
+          
+          ;; 4. Is the very first thing we hit a strict '*' heading?
+          (if (looking-at "^\\*+ ")
+              (setq has-direct-heading t
+                    heading-pos (point))
+            ;; If we hit prose, normal text (like "move"), or the top of the file, it fails!
+            (setq has-direct-heading nil
+                  heading-pos top-of-block)))))
+    
+    (if has-direct-heading
+        ;; SUCCESS: We found a strict heading directly above it
+        (save-excursion
+          (goto-char heading-pos)
+          (org-id-get-create)
+          (org-store-link nil t)
+          (message "Copied existing heading link! (Paste with SPC n p)"))
+      
+      ;; FAILURE: Missing a strict heading. Force the prompt!
+      (let ((heading-title (read-string "⚠️ Block needs a heading! Enter title: ")))
+        (save-excursion
+          (goto-char heading-pos)
+          (insert "* " heading-title "\n")
+          (forward-line -1)
+          (org-id-get-create)
+          (org-store-link nil t))
+        (message "Created '* %s' and copied its link! (Paste with SPC g p)" heading-title)))))
 
-(evil-define-key 'normal 'org-mode-map
-  (kbd "SPC n y") #'my/org-store-link-smart   ; 'y' for Yank link
-  (kbd "SPC n p") #'my/org-insert-link-clean)
+;; Bulletproof binding: Apply to both Normal and Motion states
+(with-eval-after-load 'evil
+  (evil-define-key '(normal motion) org-mode-map 
+    (kbd "g y")     #'my/org-store-link-smart
+    (kbd "g p")     #'my/org-insert-link-clean))
 
 ;; ==========================================
 ;; ORG LINK HYDRA (Right-Click Menu)
