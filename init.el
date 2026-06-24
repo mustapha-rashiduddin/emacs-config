@@ -1449,7 +1449,34 @@ _u_: Generate/Get ID     _o_: Open Link
   (evil-ex-define-cmd "colorscheme" 'evil-ef-theme-select)
 
   (evil-define-key 'normal 'global
-    (kbd "SPC t t") 'ef-themes-toggle))
+    (kbd "SPC t t") 'ef-themes-toggle)
+
+  ;; ---------------------------------------------------------
+  ;; 4. TOP MENU BAR: THEME PICKER
+  ;; ---------------------------------------------------------
+  (defvar my-theme-menu-map (make-sparse-keymap "Themes"))
+
+  ;; Fetch, sort, and inject all available ef-themes into the menu dynamically
+  (let ((ef-theme-list (sort (mapcan (lambda (sym)
+                                       (let ((name (symbol-name sym)))
+                                         (if (string-prefix-p "ef-" name)
+                                             (list name))))
+                                       (custom-available-themes))
+                             #'string<)))
+    (dolist (theme-name ef-theme-list)
+      (let ((theme-sym (intern theme-name)))
+        (define-key my-theme-menu-map (vector theme-sym)
+          `(menu-item ,theme-name
+                      (lambda ()
+                        (interactive)
+                        (evil-ef-theme-select ,theme-name))
+                      ;; Put a dynamic radio dot next to the currently active theme!
+                      :button (:radio . (eq (car-safe custom-enabled-themes) ',theme-sym)))))))
+
+  (define-key global-map [menu-bar my-theme-menu]
+    (cons "Themes" my-theme-menu-map))
+    
+  (add-to-list 'menu-bar-final-items 'my-theme-menu t))
 
 ;; ==========================================
 ;; 9. Elfeed & Elfeed-Org
@@ -2618,8 +2645,30 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 (add-to-list 'menu-bar-final-items 'jump t)
 (add-to-list 'menu-bar-final-items 'my-debug-menu t)
 
-;; ---------------------------------------------------------------------------------
+;; =========================================
+;; Top Menu Bar: Editor Mode (Vim/CUA)
+;; =========================================
 
+;; 1. Create a dedicated keymap for the Editor mode menu
+(defvar my-editor-menu-map (make-sparse-keymap "Editor"))
+
+;; 2. Use radio buttons so it visually indicates what mode you are currently in
+(define-key my-editor-menu-map [turn-cua-on]
+  '(menu-item "CUA Mode (Normal Emacs)" cua
+              :button (:radio . outside-vim-mode)))
+
+(define-key my-editor-menu-map [turn-vim-on]
+  '(menu-item "Vim Mode (Evil)" vim
+              :button (:radio . (not outside-vim-mode))))
+
+;; 3. Attach it to the global menu bar
+(define-key global-map [menu-bar my-editor-menu]
+  (cons "Editor" my-editor-menu-map))
+
+;; 4. Push it to the far right alongside the others
+(add-to-list 'menu-bar-final-items 'my-editor-menu t)
+
+;; ---------------------------------------------------------------------------------
 (defun my-force-menu ()
   "First run menu-mode, then open the speed dial hydra."
   (interactive) ;; <--- This makes it usable in menus/keybindings
