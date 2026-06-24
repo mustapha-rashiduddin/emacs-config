@@ -667,7 +667,7 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 
 (defun my/org-it ()
   "Take the current source code buffer, create
-   a .org file, and wrap it in a src block."
+   a .org file, wrap it cleanly in a src block, and tangle it immediately."
   (interactive)
   (unless (buffer-file-name)
     (error "Buffer is not visiting a file!"))
@@ -685,7 +685,7 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
                  ("py"  "python")
                  ("rs"  "rust")
                  (_     source-ext)))
-         ;; ADDED FIX: Automatically add :main no for C/C++ to stop the main() wrapping
+         ;; Automatically add :main no for C/C++ to stop the main() wrapping
          (main-flag (if (member lang '("c" "cpp")) " :main no" "")))
     
     (with-current-buffer (find-file-noselect org-file)
@@ -694,13 +694,11 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
             (erase-buffer)
           (error "Aborted `:org-it`")))
       
-      ;; ADDED FIX: main-flag is injected here
+      ;; 1. Insert global properties (Tangle info)
       (insert (format "#+PROPERTY: header-args:%s :tangle %s :comments link%s\n\n" 
                       lang source-name main-flag))
       
-      (insert (format "* %s\n" (capitalize (file-name-sans-extension source-name))))
-      (insert ":PROPERTIES:\n:ID:       " (org-id-uuid) "\n:END:\n\n")
-      
+      ;; 2. Insert the source block DIRECTLY
       (insert "#+name: initial-block\n")
       (insert (format "#+begin_src %s\n" lang))
       (insert source-content)
@@ -711,7 +709,12 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
       (switch-to-buffer (current-buffer))
       (org-mode)
       (save-buffer)
-      (message "Successfully org-it'd! No more unwanted main() wraps."))))
+      
+      ;; 3. Automatically tangle the file so jump links work instantly!
+      ;; (This calls your existing function to silently update the C++ buffer)
+      (my-quiet-tangle)
+      
+      (message "Successfully org-it'd and tangled! Jump links are ready."))))
 
 (with-eval-after-load 'evil
   (evil-ex-define-cmd "org-it" 'my/org-it))
