@@ -1198,16 +1198,23 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
 ;; Smart Yank (Copy Link) - The Strict Heading Enforcer
 ;; ==========================================
 (defun my/org-store-link-smart ()
-  "Intelligently store an Org link for a specific block.
-  Requires a strict `* ` heading directly above the block. If missing, it prompts."
+  "Intelligently store an Org link.
+  If on a source block, enforce a strict `* ` heading.
+  Otherwise, copy the link normally for standard Org files."
   (interactive)
-  (let ((has-direct-heading nil)
-        (heading-pos nil))
-    (save-excursion
-      (if (org-at-heading-p)
-          (setq has-direct-heading t
-                heading-pos (point))
-        
+  (cond
+   ;; CASE 1: Cursor is currently ON a heading.
+   ((org-at-heading-p)
+    (org-id-get-create)
+    (org-store-link nil t)
+    (message "Copied heading link! (Paste with g p)"))
+
+   ;; CASE 2: Cursor is on or inside a Source Block. (Your strict enforcer)
+   ((or (org-in-src-block-p)
+        (eq (org-element-type (org-element-at-point)) 'src-block))
+    (let ((has-direct-heading nil)
+          (heading-pos nil))
+      (save-excursion
         ;; 1. Go to the absolute top of the current block (including #+name:)
         (org-backward-element)
         (let ((top-of-block (point)))
@@ -1229,25 +1236,30 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
                     heading-pos (point))
             ;; If we hit prose, normal text (like "move"), or the top of the file, it fails!
             (setq has-direct-heading nil
-                  heading-pos top-of-block)))))
-    
-    (if has-direct-heading
-        ;; SUCCESS: We found a strict heading directly above it
-        (save-excursion
-          (goto-char heading-pos)
-          (org-id-get-create)
-          (org-store-link nil t)
-          (message "Copied existing heading link! (Paste with SPC n p)"))
+                  heading-pos top-of-block))))
       
-      ;; FAILURE: Missing a strict heading. Force the prompt!
-      (let ((heading-title (read-string "⚠️ Block needs a heading! Enter title: ")))
-        (save-excursion
-          (goto-char heading-pos)
-          (insert "* " heading-title "\n")
-          (forward-line -1)
-          (org-id-get-create)
-          (org-store-link nil t))
-        (message "Created '* %s' and copied its link! (Paste with SPC g p)" heading-title)))))
+      (if has-direct-heading
+          ;; SUCCESS: We found a strict heading directly above it
+          (save-excursion
+            (goto-char heading-pos)
+            (org-id-get-create)
+            (org-store-link nil t)
+            (message "Copied existing heading link! (Paste with g p)"))
+        
+        ;; FAILURE: Missing a strict heading. Force the prompt!
+        (let ((heading-title (read-string "⚠️ Block needs a heading! Enter title: ")))
+          (save-excursion
+            (goto-char heading-pos)
+            (insert "* " heading-title "\n")
+            (forward-line -1)
+            (org-id-get-create)
+            (org-store-link nil t))
+          (message "Created '* %s' and copied its link! (Paste with g p)" heading-title)))))
+
+   ;; CASE 3: Normal Org files / Prose (No source block, no heading)
+   (t
+    (org-store-link nil t)
+    (message "Copied standard Org link!"))))
 
 ;; Bulletproof binding: Apply to both Normal and Motion states
 (with-eval-after-load 'evil
