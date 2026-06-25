@@ -672,19 +672,24 @@ If in Code: Force ElDoc to fetch and hijack the window seamlessly."
   (unless (buffer-file-name)
     (error "Buffer is not visiting a file!"))
   
-  (let* ((source-file (buffer-file-name))
+(let* ((source-file (buffer-file-name))
          (source-name (file-name-nondirectory source-file))
          (source-ext  (file-name-extension source-file))
          (source-content (buffer-string))
          (org-file (concat source-file ".org")) 
+         ;; Map all C/C++ extensions to their correct Org block names
          (lang (pcase source-ext
-                 ("cpp" "cpp")
-                 ("hpp" "cpp")
-                 ("c"   "c")
-                 ("lua" "lua")
-                 ("py"  "python")
-                 ("rs"  "rust")
-                 (_     source-ext)))
+                 ("cpp"  "cpp")
+                 ("hpp"  "cpp")
+                 ("cppm" "cpp")
+                 ("cc"   "cpp")
+                 ("cxx"  "cpp")
+                 ("c"    "c")
+                 ("h"    "c")    ;; <-- Added C header!
+                 ("lua"  "lua")
+                 ("py"   "python")
+                 ("rs"   "rust")
+                 (_      source-ext)))
          ;; Automatically add :main no for C/C++ to stop the main() wrapping
          (main-flag (if (member lang '("c" "cpp")) " :main no" "")))
     
@@ -2782,11 +2787,11 @@ Format: \\='((mode1 mode2) . custom-start-function)")
 ;; =========================================
 ;; 1-Click Debugger Buttons (Tool Bar)
 ;; =========================================
-(tool-bar-mode 1)
-(setq tool-bar-style 'text) ;; Force it to be sleek text, no icons
+;(tool-bar-mode 1)
+;(setq tool-bar-style 'text) ;; Force it to be sleek text, no icons
 
 ;; Clear out Emacs' default icons (Save, Open, Print, etc.)
-(setq-default tool-bar-map (make-sparse-keymap))
+;(setq-default tool-bar-map (make-sparse-keymap))
 
 ;; =========================================
 ;; The "No Monkey Business" 1-Click Debug Bar
