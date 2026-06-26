@@ -77,4 +77,77 @@
         (call-process "xmake" nil nil nil "f" "-m" "debug"))
       (message "✅ Successfully deployed xmake.lua and initialized project!"))))
 
+;; ==========================================
+;; Eshell Autocompletion for XMake & Catch2 Tags
+;; ==========================================
+(require 'pcomplete)
+(require 'subr-x)
+
+(defun my/xmake-get-physical-binaries ()
+  "Gather ONLY physical binaries that exist in ./build or ./bin."
+  (let ((candidates '())
+        (search-dirs '("build" "bin")))
+    (dolist (dir search-dirs)
+      (let ((full-dir (expand-file-name dir default-directory)))
+        (when (file-directory-p full-dir)
+          (ignore-errors
+            (dolist (file (directory-files-recursively full-dir ".*"))
+              (when (and (file-executable-p file)
+                         (not (file-directory-p file)))
+                (push (file-name-nondirectory file) candidates)))))))
+    (delete-dups candidates)))
+
+(defun my/xmake-get-catch2-tags ()
+  "Scan for test_*.cpp files and generate Catch2 tag arguments."
+  (let ((candidates '()))
+    (ignore-errors
+      (dolist (file (directory-files default-directory nil "^test_.*\\.cpp$"))
+        (let ((base (file-name-base file)))
+          (when (string-prefix-p "test_" base)
+            ;; test_node.cpp -> ["node"], test_list.cpp -> ["list"]
+            (push (format "[\"%s\"]" (substring base 5)) candidates)))))
+    (delete-dups candidates)))
+
+(with-eval-after-load 'pcomplete
+  (defun pcomplete/xmake ()
+    "Custom completion for the `xmake` command in Eshell."
+    (pcomplete-here '("build" "b" "run" "r" "test" "config" "f" "clean" "show" "project" "require"))
+    
+    (let ((subcmd (pcomplete-arg 1)))
+      (cond
+       ;; If running/testing: xmake run <target> <args>
+       ((member subcmd '("run" "r" "test"))
+        (pcomplete-here (or (my/xmake-get-physical-binaries) (pcomplete-entries)))
+        
+        ;; Complete Catch2 tags if the chosen binary starts with "test"
+        (let ((target (pcomplete-arg 1)))
+          (when (and target (string-match-p "test" target))
+            (while (pcomplete-here (my/xmake-get-catch2-tags))))))
+       
+       ;; If config: xmake f <flags>
+       ((member subcmd '("config" "f"))
+        (while (pcomplete-here '("-m" "debug" "release" "asan" "tsan" "lsan" "ubsan" "-c" "--help"))))
+       
+       ;; Fallback for anything else
+       (t
+        (while (pcomplete-here (pcomplete-entries))))))))
+
+;; ==========================================
+;; Stop Backslash-Escaping Catch2 Tags (Raw Output)
+;; ==========================================
+(defun my/xmake-suppress-quotes (orig-fn string &rest args)
+  "Prevent Emacs from backslash-escaping or single-quoting Catch2 tags.
+Outputs the raw [\"tag\"] exactly as requested."
+  (if (and (stringp string)
+           (string-prefix-p "[\"" string)
+           (string-match-p "\"\\]\\s-*$" string))
+      ;; Return the absolute raw string, no quotes, no backslashes
+      (string-trim string)
+    (apply orig-fn string args)))
+
+;; Apply globally to completely blanket Eshell, Corfu, Cape, and Company quoting paths
+(advice-add 'eshell-quote-argument :around #'my/xmake-suppress-quotes)
+(advice-add 'pcomplete-quote-argument :around #'my/xmake-suppress-quotes)
+(advice-add 'comint-quote-filename :around #'my/xmake-suppress-quotes)
+
 (provide 'cpp)

@@ -29,3 +29,4 @@ straight/build
 straight/build-cache.el
 straight/modified/
 straight/repos/
+tramp
