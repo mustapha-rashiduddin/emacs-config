@@ -1,12 +1,6 @@
-Most AI coding tools send your code to the cloud. This environment doesn't. It's a fully local, privacy-first IDE 
-built on Emacs — packaged in Docker -- https://github.com/mustapha-rashiduddin/student-emacs-pull so anyone can run it with one 
-command — with a knowledge graph that connects your notes directly to your code, and an agent architecture that prevents hallucination at the 
-structural level by restricting AI writes to named code blocks.
-Pull it. Run it. Own it.
-
 Emacs Configuration
 
-This is an Evil-based Emacs configuration centered around Org-mode, C/C++/Python
+This is an Evil-based Emacs configuration centered around Org-mode, C/C++/Python/Bash
 development, and a custom SQLite-backed workspace bookmark system.
 
 Requirements:
