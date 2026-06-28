@@ -1812,10 +1812,7 @@ Displays the calculated breadcrumb path in the echo area."
   (setq tab-width 8)
   
   ;; Linus strictly uses real tabs, not spaces
-  (setq indent-tabs-mode t) 
-  
-  ;; Stop Emacs from fighting your manual line breaks
-  (electric-indent-local-mode -1))
+  (setq indent-tabs-mode t))
 
 ;; Add this function to the hooks for C and C++ modes
 (add-hook 'c-mode-hook #'my/c-c++-hook)
