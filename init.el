@@ -1717,6 +1717,10 @@ Displays the calculated breadcrumb path in the echo area."
 ;; Tell Emacs that .cppm files are C++ files so they get colors and LSP
 (add-to-list 'auto-mode-alist '("\\.cppm\\'" . c++-mode))
 
+;; Make all autocompletion case-insensitive
+(setq completion-ignore-case t)
+(setq read-file-name-completion-ignore-case t)
+(setq read-buffer-completion-ignore-case t)
 ;; 1. Setup Corfu for modern, lightweight auto-completion popups
 (use-package corfu
   :straight (:host github :repo "minad/corfu")
