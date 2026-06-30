@@ -2911,6 +2911,34 @@ Format: \\='((mode1 mode2) . custom-start-function)")
   (sync-tmux-escape)
   (message "VIM OFF (CUA ON)"))
 
+;; ==========================================
+;; AGENT API SERVER (simple-httpd)
+;; ==========================================
+(use-package simple-httpd
+  :straight t
+  :config
+  ;; 1. Tell Emacs to look in your new lisp directory
+  (add-to-list 'load-path (expand-file-name "~/.emacs.d/lisp/"))
+
+  ;; 2. Load the masterpiece we just wrote
+  (require 'org-roam-agent-api)
+
+  ;; 3. Set your secret token (You will use this in Postman/Curl)
+  (setq my/agent-api-token "secret-agent-123")
+  
+  ;; 4. Set the port (Defaults to 8080, but explicitly setting it here is good practice)
+  (setq my/agent-api-port 8080)
+
+  ;; 5. Optional: Set your Anchor ID when you have one ready for Phase 2
+  ;; (setq my/agent-api-anchor-id "paste-your-active-project-node-uuid-here")
+
+  ;; 6. Start the server
+  ;; If running as a daemon, start it automatically.
+  ;; If running in GUI, we just print a message so you can start it manually with M-x
+  (if (daemonp)
+      (my/agent-api-start)
+    (message "Agent API loaded! Run `M-x my/agent-api-start` to boot the server.")))
+
 ;; ------------------------------------------
 ;; THE MAGIC HOOKS
 ;; ------------------------------------------
