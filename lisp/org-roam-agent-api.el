@@ -150,7 +150,11 @@
       (org-roam-db-update-file org-default-notes-file)
       (insert (my/agent-api--json '((message . "Fleeting note captured.")))))))
 
-(my/defservlet-write api/node
+;; simple-httpd routes by PATH ONLY, not by HTTP method — a GET handler
+;; and a write handler at the same path name collide, and whichever loads
+;; last silently wins. This used to be api/node, colliding with the GET
+;; node-read endpoint above. Renamed to disambiguate.
+(my/defservlet-write api/node/create
   (let ((title (cdr (assoc 'title data)))
         (content (cdr (assoc 'content data))))
     (if (not title)
@@ -298,7 +302,8 @@
 ;; PHASE 5: TIER 2 WRITES
 ;; ==========================================
 
-(my/defservlet-write api/block/code
+;; renamed from api/block/code (PUT) — collided with the GET read route above
+(my/defservlet-write api/block/code/update
   (let* ((node-id (cdr (assoc 'node_id data)))
          (name (cdr (assoc 'name data)))
          (new-code (cdr (assoc 'code data)))
@@ -325,7 +330,8 @@
             (org-roam-db-update-file file)
             (insert (my/agent-api--json `((message . "Block updated.") (node_id . ,node-id) (heading . ,name))))))))))
 
-(my/defservlet-write api/block/prose
+;; renamed from api/block/prose (PUT) — collided with the GET read route above
+(my/defservlet-write api/block/prose/update
   (let* ((node-id (cdr (assoc 'node_id data)))
          (name (cdr (assoc 'name data)))
          (new-prose (cdr (assoc 'prose data)))
