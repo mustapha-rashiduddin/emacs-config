@@ -23,11 +23,9 @@
 ;; ==========================================
 
 (defun my/agent-api--header (request name)
-  "Case-insensitive lookup of header NAME in simple-httpd's REQUEST.
-Normalises to a flat string regardless of whether simple-httpd stored
-the value as a raw string, a list of strings, or a list of symbols."
-  (let* ((entry (assoc-string name request t))
-         (raw   (cdr entry)))
+  (let* ((headers (if (listp request) request nil))
+         (entry (assoc-string name headers t))
+         (raw (cdr entry)))
     (cond
      ((null raw)    nil)
      ((stringp raw) raw)
@@ -35,13 +33,14 @@ the value as a raw string, a list of strings, or a list of symbols."
       (mapconcat (lambda (x)
                    (cond ((stringp x) x)
                          ((symbolp x) (symbol-name x))
-                         (t           (format "%s" x))))
+                         (t (format "%s" x))))
                  raw " "))
      (t (format "%s" raw)))))
 
 (defun my/agent-api--authorized-p (request)
   (let ((auth (my/agent-api--header request "Authorization")))
-    (and auth (string-equal auth (concat "Bearer " my/agent-api-token)))))
+    (and (stringp auth)
+         (string-equal auth (concat "Bearer " my/agent-api-token)))))
 
 (defun my/agent-api--json (data)
   (json-encode (append '((status . "success")) data)))
@@ -50,20 +49,35 @@ the value as a raw string, a list of strings, or a list of symbols."
   (json-encode `((status . "error") (code . ,code) (message . ,message))))
 
 (defun my/agent-api--read-body (proc)
+  "Read raw HTTP request body from simple-httpd PROC buffer."
   (with-current-buffer (process-buffer proc)
     (save-excursion
       (goto-char (point-min))
-      (if (re-search-forward "\r?\n\r?\n" nil t)
-          (buffer-substring-no-properties (point) (point-max))
-        ""))))
+      (cond
+       ;; CRLF header separator: Windows/HTTP style
+       ((search-forward "\r\n\r\n" nil t)
+        (buffer-substring-no-properties (point) (point-max)))
+
+       ;; LF-only header separator
+       ((search-forward "\n\n" nil t)
+        (buffer-substring-no-properties (point) (point-max)))
+
+       ;; Nothing found
+       (t
+        "")))))
 
 (defun my/agent-api--parse-json-body (proc)
-  (condition-case nil
-      (let ((json-object-type 'alist)
-            (json-key-type 'symbol)
-            (json-array-type 'list))
-        (json-read-from-string (my/agent-api--read-body proc)))
-    (error nil)))
+  "Parse JSON body from simple-httpd PROC buffer."
+  (let ((raw (my/agent-api--read-body proc)))
+    (message "AGENT API RAW BODY: %S" raw)
+    (condition-case err
+        (let ((json-object-type 'alist)
+              (json-key-type 'symbol)
+              (json-array-type 'list))
+          (json-read-from-string raw))
+      (error
+       (message "AGENT API JSON PARSE ERROR: %S" err)
+       nil))))
 
 (defun my/agent-api--backup-file (file)
   (when (file-exists-p file)
@@ -88,19 +102,17 @@ string regardless of whether simple-httpd stored it as a symbol or string."
      (t             (format "%s" val)))))
 
 (defmacro my/defservlet (name mime-type args &rest body)
-  "Define an authorized GET servlet. Unlike defservlet*, this manually
-defines the full (proc path query request) signature so auth checking
-via `request' actually works."
-  (let ((fn-name (intern (format "httpd/%s" name))))
+  (let ((fn-name (intern (format "httpd/%s" name)))
+        (mime-str (if (symbolp mime-type) (symbol-name mime-type) mime-type)))
     `(defun ,fn-name (proc path query request)
        (if (not (my/agent-api--authorized-p request))
-           (with-httpd-buffer proc ,(symbol-name mime-type)
+           (with-httpd-buffer proc ,mime-str
              (insert (my/agent-api--json-error
                       "UNAUTHORIZED" "Missing or invalid bearer token")))
          (let ,(mapcar (lambda (arg)
                          `(,arg (my/agent-api--query-param query ',arg)))
                        args)
-           (with-httpd-buffer proc ,(symbol-name mime-type)
+           (with-httpd-buffer proc ,mime-str
              ,@body))))))
 
 (defmacro my/defservlet-write (name &rest body)
