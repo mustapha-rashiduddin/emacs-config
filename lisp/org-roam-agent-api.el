@@ -23,7 +23,21 @@
 ;; ==========================================
 
 (defun my/agent-api--header (request name)
-  (cdr (assoc-string name request t)))
+  "Case-insensitive lookup of header NAME in simple-httpd's REQUEST.
+Normalises to a flat string regardless of whether simple-httpd stored
+the value as a raw string, a list of strings, or a list of symbols."
+  (let* ((entry (assoc-string name request t))
+         (raw   (cdr entry)))
+    (cond
+     ((null raw)    nil)
+     ((stringp raw) raw)
+     ((listp raw)
+      (mapconcat (lambda (x)
+                   (cond ((stringp x) x)
+                         ((symbolp x) (symbol-name x))
+                         (t           (format "%s" x))))
+                 raw " "))
+     (t (format "%s" raw)))))
 
 (defun my/agent-api--authorized-p (request)
   (let ((auth (my/agent-api--header request "Authorization")))
@@ -59,11 +73,35 @@
            (name (format "%s.%s.bak" (file-name-nondirectory file) stamp)))
       (copy-file file (expand-file-name name my/agent-api-backup-dir) t))))
 
+(defun my/agent-api--query-param (query name)
+  "Pull NAME from simple-httpd's QUERY alist. Coerces the result to a
+string regardless of whether simple-httpd stored it as a symbol or string."
+  (let* ((sname (if (symbolp name) (symbol-name name) name))
+         (sym   (intern sname))
+         (val   (or (cdr (assoc sym query))
+                    (cdr (assoc sname query))
+                    (cdr (assoc name query)))))
+    (cond
+     ((null val)    nil)
+     ((stringp val) val)
+     ((symbolp val) (symbol-name val))
+     (t             (format "%s" val)))))
+
 (defmacro my/defservlet (name mime-type args &rest body)
-  `(defservlet* ,name ,mime-type ,args
-     (if (my/agent-api--authorized-p request)
-         (progn ,@body)
-       (insert (my/agent-api--json-error "UNAUTHORIZED" "Missing or invalid bearer token")))))
+  "Define an authorized GET servlet. Unlike defservlet*, this manually
+defines the full (proc path query request) signature so auth checking
+via `request' actually works."
+  (let ((fn-name (intern (format "httpd/%s" name))))
+    `(defun ,fn-name (proc path query request)
+       (if (not (my/agent-api--authorized-p request))
+           (with-httpd-buffer proc ,(symbol-name mime-type)
+             (insert (my/agent-api--json-error
+                      "UNAUTHORIZED" "Missing or invalid bearer token")))
+         (let ,(mapcar (lambda (arg)
+                         `(,arg (my/agent-api--query-param query ',arg)))
+                       args)
+           (with-httpd-buffer proc ,(symbol-name mime-type)
+             ,@body))))))
 
 (defmacro my/defservlet-write (name &rest body)
   (let ((fn-name (intern (format "httpd/%s" name))))
